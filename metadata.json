@@ -1,0 +1,6 @@
+{
+  "name": "Dashboard Prestasi Kelas SMP Negeri 7 Muara Badak",
+  "description": "Aplikasi sistem informasi dan dashboard penilaian prestasi kelas harian dan rekapitulasi mingguan SMP Negeri 7 Muara Badak.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

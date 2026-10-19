@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User accounts for teachers and administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string", "maxLength": 64 },
+        "nama": { "type": "string", "maxLength": 128 },
+        "nip": { "type": "string", "maxLength": 64 },
+        "role": { "type": "string", "enum": ["admin", "guru"] },
+        "status": { "type": "string", "enum": ["aktif", "nonaktif"] },
+        "dibuatPada": { "type": "string" }
+      },
+      "required": ["username", "nama", "role", "status"]
+    },
+    "Kelas": {
+      "title": "Kelas",
+      "description": "Classroom definitions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string", "maxLength": 32 },
+        "tingkat": { "type": "number" },
+        "waliKelas": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["aktif", "nonaktif"] }
+      },
+      "required": ["nama", "tingkat", "status"]
+    },
+    "Siswa": {
+      "title": "Siswa",
+      "description": "Student roster record per class.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nisn": { "type": "string", "maxLength": 32 },
+        "nama": { "type": "string", "maxLength": 128 },
+        "kelasId": { "type": "string", "maxLength": 64 },
+        "kelasNama": { "type": "string", "maxLength": 32 }
+      },
+      "required": ["nama", "kelasId", "kelasNama"]
+    },
+    "Kategori": {
+      "title": "Kategori",
+      "description": "Evaluation categories.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "deskripsi": { "type": "string" },
+        "ikon": { "type": "string" },
+        "warna": { "type": "string" },
+        "status": { "type": "string", "enum": ["aktif", "coming_soon"] }
+      },
+      "required": ["id", "nama", "status"]
+    },
+    "Periode": {
+      "title": "Periode",
+      "description": "Weekly evaluation period.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "tanggalMulai": { "type": "string" },
+        "tanggalSelesai": { "type": "string" },
+        "status": { "type": "string", "enum": ["aktif", "arsip"] }
+      },
+      "required": ["id", "nama", "status"]
+    },
+    "Penilaian": {
+      "title": "Penilaian",
+      "description": "Evaluation score entry submitted by jurors.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "periodeId": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "kelasId": { "type": "string" },
+        "kelasNama": { "type": "string" },
+        "kategoriId": { "type": "string" },
+        "kategoriNama": { "type": "string" },
+        "nilai": { "type": "number" },
+        "catatan": { "type": "string" },
+        "guruUsername": { "type": "string" },
+        "guruNama": { "type": "string" },
+        "dibuatPada": { "type": "string" }
+      },
+      "required": ["periodeId", "tanggal", "kelasId", "kategoriId", "nilai", "guruUsername"]
+    },
+    "LogAktivitas": {
+      "title": "LogAktivitas",
+      "description": "Audit trail log.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "waktu": { "type": "string" },
+        "username": { "type": "string" },
+        "nama": { "type": "string" },
+        "aksi": { "type": "string" },
+        "detail": { "type": "string" }
+      },
+      "required": ["waktu", "username", "aksi"]
+    },
+    "Pengaturan": {
+      "title": "Pengaturan",
+      "description": "School dashboard settings.",
+      "type": "object",
+      "properties": {
+        "namaSekolah": { "type": "string" },
+        "judulDashboard": { "type": "string" },
+        "subjudulDashboard": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "alamatSekolah": { "type": "string" },
+        "kontak": { "type": "string" }
+      },
+      "required": ["namaSekolah", "judulDashboard"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User accounts collection"
+    },
+    "/kelas/{kelasId}": {
+      "schema": "Kelas",
+      "description": "Class definitions"
+    },
+    "/siswa/{siswaId}": {
+      "schema": "Siswa",
+      "description": "Student roster documents"
+    },
+    "/kategori/{kategoriId}": {
+      "schema": "Kategori",
+      "description": "Evaluation categories"
+    },
+    "/periode/{periodeId}": {
+      "schema": "Periode",
+      "description": "Weekly period documents"
+    },
+    "/penilaian/{penilaianId}": {
+      "schema": "Penilaian",
+      "description": "Juror score evaluation entries"
+    },
+    "/logs/{logId}": {
+      "schema": "LogAktivitas",
+      "description": "System audit logs"
+    },
+    "/pengaturan/default": {
+      "schema": "Pengaturan",
+      "description": "School settings document"
+    }
+  }
+}
