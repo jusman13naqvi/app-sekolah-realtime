@@ -144,6 +144,26 @@ export default function App() {
     triggerRefresh();
   };
 
+  const handleUpdateKelas = async (id: string, kelasData: Partial<Omit<import('./types').Kelas, 'id'>>) => {
+    await dataStore.updateKelas(id, kelasData);
+    triggerRefresh();
+  };
+
+  const handleDeleteKelas = async (id: string) => {
+    await dataStore.deleteKelas(id);
+    triggerRefresh();
+  };
+
+  const handleDeleteAllKelas = async () => {
+    await dataStore.deleteAllKelas();
+    triggerRefresh();
+  };
+
+  const handleSeedSampleKelas = async () => {
+    await dataStore.seedSampleKelas();
+    triggerRefresh();
+  };
+
   const handleAddSiswa = async (siswaData: Omit<Siswa, 'id'>) => {
     await dataStore.addSiswa(siswaData);
     triggerRefresh();
@@ -276,6 +296,10 @@ export default function App() {
               onResetPassword={handleResetPassword}
               onToggleUserStatus={handleToggleUserStatus}
               onAddKelas={handleAddKelas}
+              onUpdateKelas={handleUpdateKelas}
+              onDeleteKelas={handleDeleteKelas}
+              onDeleteAllKelas={handleDeleteAllKelas}
+              onSeedSampleKelas={handleSeedSampleKelas}
               onAddSiswa={handleAddSiswa}
               onDeleteSiswa={handleDeleteSiswa}
               onDeleteAllSiswa={handleDeleteAllSiswa}
