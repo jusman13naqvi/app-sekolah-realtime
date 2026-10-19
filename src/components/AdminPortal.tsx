@@ -1049,35 +1049,83 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
             <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
               <FileUp className="w-5 h-5 text-emerald-600" />
-              <span>Import Data Siswa Sekaligus (CSV)</span>
+              <span>Import Data Siswa Sekaligus (Upload File CSV)</span>
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Tempelkan (*paste*) teks CSV atau isi file Excel sesuai format berikut:
+              Upload file CSV template yang telah Anda unduh dan isi, atau tempelkan (*paste*) teks isi file CSV:
               <br />
-              <code className="bg-slate-100 px-2 py-0.5 rounded font-mono text-[11px] block mt-1">
+              <code className="bg-slate-100 px-2.5 py-1 rounded font-mono text-[11px] inline-block mt-1 font-bold text-slate-800">
                 No,Nama,Kelas,NISN
               </code>
             </p>
 
-            <textarea
-              rows={6}
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              placeholder="1,Aditya Pratama,7A,0081234567&#10;2,Budi Raharjo,7A,0087654321"
-              className="w-full border border-slate-300 rounded-xl p-3 text-xs font-mono bg-slate-50"
-            />
+            {/* Direct File Selector / Drag & Drop */}
+            <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-4 text-center transition-all group">
+              <input
+                type="file"
+                accept=".csv,.txt"
+                id="csvFileInput"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const content = event.target?.result as string;
+                      if (content) {
+                        setCsvText(content);
+                      }
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor="csvFileInput"
+                className="cursor-pointer flex flex-col items-center justify-center gap-1.5 text-slate-600 group-hover:text-emerald-700"
+              >
+                <Upload className="w-8 h-8 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                  Pilih / Upload File CSV (.csv) dari Perangkat Anda
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Sistem akan otomatis membaca seluruh baris data siswa dari file tersebut.
+                </span>
+              </label>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700 block">
+                Atau Pratinjau / Edit Teks CSV:
+              </label>
+              <textarea
+                rows={4}
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder="No,Nama,Kelas,NISN&#10;1,Aditya Pratama,7A,0081234567&#10;2,Budi Raharjo,7A,0087654321"
+                className="w-full border border-slate-300 rounded-xl p-3 text-xs font-mono bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setShowImportSiswaModal(false)} className="px-3 py-1.5 text-slate-600 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportSiswaModal(false);
+                  setCsvText('');
+                }}
+                className="px-3 py-1.5 text-slate-600 hover:text-slate-900 text-xs font-semibold"
+              >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleImportCSV}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm"
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
               >
-                Proses Import Siswa
+                <FileUp className="w-3.5 h-3.5" />
+                <span>Proses Import Siswa</span>
               </button>
             </div>
           </div>
