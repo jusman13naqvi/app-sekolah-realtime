@@ -22,6 +22,7 @@ import {
   Upload,
   RotateCcw,
   Database,
+  Edit2,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -36,6 +37,10 @@ interface AdminPortalProps {
   onResetPassword: (userId: string, newPass: string) => void;
   onToggleUserStatus: (id: string) => void;
   onAddKelas: (k: Omit<Kelas, 'id'>) => void;
+  onUpdateKelas: (id: string, k: Partial<Omit<Kelas, 'id'>>) => void;
+  onDeleteKelas: (id: string) => void;
+  onDeleteAllKelas: () => void;
+  onSeedSampleKelas: () => void;
   onAddSiswa: (s: Omit<Siswa, 'id'>) => void;
   onDeleteSiswa: (siswaId: string) => void;
   onDeleteAllSiswa: () => void;
@@ -59,6 +64,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onResetPassword,
   onToggleUserStatus,
   onAddKelas,
+  onUpdateKelas,
+  onDeleteKelas,
+  onDeleteAllKelas,
+  onSeedSampleKelas,
   onAddSiswa,
   onDeleteSiswa,
   onDeleteAllSiswa,
@@ -90,6 +99,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [newKelasNama, setNewKelasNama] = useState('');
   const [newTingkat, setNewTingkat] = useState<number>(7);
   const [newWaliKelas, setNewWaliKelas] = useState('');
+
+  // Edit Kelas State
+  const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
+  const [editKelasNama, setEditKelasNama] = useState('');
+  const [editKelasTingkat, setEditKelasTingkat] = useState<number>(7);
+  const [editKelasWali, setEditKelasWali] = useState('');
+  const [editKelasStatus, setEditKelasStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
   // Siswa Form
   const [showAddSiswaModal, setShowAddSiswaModal] = useState(false);
@@ -143,6 +159,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setShowAddKelasModal(false);
       setNewKelasNama(''); setNewWaliKelas('');
     } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
+  };
+
+  const handleSaveEditKelas = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingKelas || !editKelasNama.trim()) return;
+    try {
+      onUpdateKelas(editingKelas.id, {
+        nama: editKelasNama.trim().toUpperCase(),
+        tingkat: Number(editKelasTingkat),
+        waliKelas: editKelasWali.trim(),
+        status: editKelasStatus,
+      });
+      setEditingKelas(null);
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal mengubah data kelas'); }
   };
 
   const handleCreateSiswa = (e: React.FormEvent) => {
@@ -570,38 +600,116 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* TAB 3: KELAS */}
       {activeTab === 'kelas' && (
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Manajemen Daftar Kelas</h2>
-              <p className="text-xs text-slate-500">Kelola unit kelas yang berpartisipasi dalam penilaian.</p>
+              <p className="text-xs text-slate-500">
+                Tambah, ubah nama/wali kelas, atau hapus kelas yang berpartisipasi dalam penilaian.
+              </p>
             </div>
-            <button
-              onClick={() => setShowAddKelasModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Kelas Baru</span>
-            </button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Isi ulang contoh daftar kelas standar sekolah (7A s.d. 9B)?')) {
+                    onSeedSampleKelas();
+                  }
+                }}
+                className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                <span>Reset Contoh Kelas (7A-9B)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAddKelasModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Kelas Baru</span>
+              </button>
+
+              {kelasList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Apakah Anda yakin ingin MENGHAPUS SELURUH DAFTAR KELAS? Tindakan ini tidak dapat dibatalkan!')) {
+                      onDeleteAllKelas();
+                    }
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Hapus Semua Kelas ({kelasList.length})</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {kelasList.map((k) => (
-              <div key={k.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-900 text-lg">Kelas {k.nama}</span>
-                  <span className="text-xs bg-white border font-semibold px-2 py-0.5 rounded text-slate-700">
-                    Tingkat {k.tingkat}
-                  </span>
+          {kelasList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {kelasList.map((k) => (
+                <div key={k.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3 relative group hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-lg">Kelas {k.nama}</span>
+                    <span className="text-xs bg-white border font-semibold px-2 py-0.5 rounded text-slate-700 shadow-2xs">
+                      Tingkat {k.tingkat}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600">
+                    <strong>Wali Kelas:</strong> {k.waliKelas || '-'}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                    <span className="text-blue-700 font-bold">
+                      {siswaList.filter((s) => s.kelasId === k.id).length} Siswa
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingKelas(k);
+                          setEditKelasNama(k.nama);
+                          setEditKelasTingkat(k.tingkat);
+                          setEditKelasWali(k.waliKelas || '');
+                          setEditKelasStatus(k.status || 'aktif');
+                        }}
+                        className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Edit Data Kelas"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus "Kelas ${k.nama}"?`)) {
+                            onDeleteKelas(k.id);
+                          }
+                        }}
+                        className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
+                        title="Hapus Kelas Ini"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-600">
-                  <strong>Wali Kelas:</strong> {k.waliKelas || '-'}
-                </p>
-                <p className="text-xs text-blue-700 font-semibold">
-                  Jumlah Siswa: {siswaList.filter((s) => s.kelasId === k.id).length} Orang
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-2">
+              <School className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-800 text-sm">Belum Ada Data Kelas</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Silakan klik tombol <strong>"Tambah Kelas Baru"</strong> atau <strong>"Reset Contoh Kelas"</strong> di atas untuk membuat kelas sekolah Anda.
+              </p>
+            </div>
+          )}
         </section>
       )}
 
@@ -1081,6 +1189,84 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg">
                   Simpan Kelas
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT KELAS */}
+      {editingKelas && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-blue-600" />
+              <span>Ubah Data Kelas</span>
+            </h3>
+
+            <form onSubmit={handleSaveEditKelas} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Kelas</label>
+                <input
+                  type="text"
+                  required
+                  value={editKelasNama}
+                  onChange={(e) => setEditKelasNama(e.target.value)}
+                  placeholder="Misal: 7A, 8B..."
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tingkat</label>
+                <select
+                  value={editKelasTingkat}
+                  onChange={(e) => setEditKelasTingkat(Number(e.target.value))}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value={7}>Kelas 7</option>
+                  <option value={8}>Kelas 8</option>
+                  <option value={9}>Kelas 9</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Wali Kelas</label>
+                <input
+                  type="text"
+                  value={editKelasWali}
+                  onChange={(e) => setEditKelasWali(e.target.value)}
+                  placeholder="Nama Wali Kelas..."
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Kelas</label>
+                <select
+                  value={editKelasStatus}
+                  onChange={(e) => setEditKelasStatus(e.target.value as 'aktif' | 'nonaktif')}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value="aktif">Aktif (Ikut Penilaian)</option>
+                  <option value="nonaktif">Nonaktif / Arsip</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingKelas(null)}
+                  className="px-3 py-1.5 text-slate-600 font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  Simpan Perubahan
                 </button>
               </div>
             </form>
