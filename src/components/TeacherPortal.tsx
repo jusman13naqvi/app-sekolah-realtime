@@ -26,6 +26,7 @@ interface TeacherPortalProps {
   kategoriList: Kategori[];
   activePeriode: Periode;
   teacherEvaluations: Penilaian[];
+  allEvaluations?: Penilaian[];
   getSiswaByKelas: (kelasId: string) => Siswa[];
   onSubmitPenilaianDisiplin: (data: {
     tanggal: string;
@@ -47,15 +48,20 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   kategoriList,
   activePeriode,
   teacherEvaluations,
+  allEvaluations,
   getSiswaByKelas,
   onSubmitPenilaianDisiplin,
   onUpdatePenilaian,
 }) => {
+  // Navigation Sidebar Tab State
+  const [activeTab, setActiveTab] = useState<'input' | 'rekap' | 'riwayat'>('input');
+
   // Base State
   const [tanggal, setTanggal] = useState<string>(new Date().toISOString().split('T')[0]);
   const [kelasId, setKelasId] = useState<string>(kelasList[0]?.id || '7a');
   const [selectedKategoriId, setSelectedKategoriId] = useState<string>('disiplin');
   const [catatan, setCatatan] = useState<string>('');
+  const [hasSavedData, setHasSavedData] = useState<boolean>(false);
 
   // Student Roster Checklist State
   const [studentRoster, setStudentRoster] = useState<SiswaDisiplinRecord[]>([]);
@@ -76,9 +82,51 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   >(null);
   const [weeklyModalSearch, setWeeklyModalSearch] = useState('');
 
+  // Auto-Load Saved Evaluation Data or Reset to Default
   useEffect(() => {
     const classStudents = getSiswaByKelas(kelasId);
-    if (classStudents.length > 0) {
+    if (classStudents.length === 0) {
+      setStudentRoster([]);
+      setCatatan('');
+      setHasSavedData(false);
+      return;
+    }
+
+    const evalsToSearch = allEvaluations || teacherEvaluations;
+    const existingEval = evalsToSearch.find(
+      (e) => e.tanggal === tanggal && e.kelasId === kelasId && e.kategoriId === 'disiplin'
+    );
+
+    if (existingEval && existingEval.disiplinDetail?.siswaDetail && existingEval.disiplinDetail.siswaDetail.length > 0) {
+      const savedMap = new Map(existingEval.disiplinDetail.siswaDetail.map((rec) => [rec.siswaId, rec]));
+      setStudentRoster(
+        classStudents.map((s) => {
+          const rec = savedMap.get(s.id);
+          if (rec) {
+            return {
+              siswaId: s.id,
+              nama: s.nama,
+              nisn: s.nisn,
+              statusKehadiran: rec.statusKehadiran || 'Hadir',
+              isiUsageReport: rec.isiUsageReport ?? true,
+              pakaiHelm: rec.pakaiHelm ?? true,
+              tepatWaktu: rec.tepatWaktu ?? true,
+            };
+          }
+          return {
+            siswaId: s.id,
+            nama: s.nama,
+            nisn: s.nisn,
+            statusKehadiran: 'Hadir',
+            isiUsageReport: true,
+            pakaiHelm: true,
+            tepatWaktu: true,
+          };
+        })
+      );
+      setCatatan(existingEval.catatan || '');
+      setHasSavedData(true);
+    } else {
       setStudentRoster(
         classStudents.map((s) => ({
           siswaId: s.id,
@@ -90,10 +138,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           tepatWaktu: true,
         }))
       );
-    } else {
-      setStudentRoster([]);
+      setCatatan('');
+      setHasSavedData(false);
     }
-  }, [kelasId, getSiswaByKelas]);
+  }, [kelasId, tanggal, teacherEvaluations, allEvaluations, getSiswaByKelas]);
 
   // Derived Counts
   const totalSiswa = studentRoster.length;
@@ -228,105 +276,214 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const selectedKategoriObj = kategoriList.find((k) => k.id === selectedKategoriId);
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 sm:p-8 shadow-lg border border-slate-800 space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-xs font-semibold border border-amber-400/30 mb-2">
-              <Award className="w-3.5 h-3.5" />
-              <span>Sistem Penilaian Juri / Guru</span>
+    <div className="flex flex-col lg:flex-row gap-6 pb-12">
+      {/* SIDEBAR NAVIGATION JURI / GURU */}
+      <aside className="w-full lg:w-64 shrink-0 space-y-4">
+        {/* Juri Info Card */}
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-md space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-base border border-amber-400/30">
+              <Award className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Penilaian Kategori Disiplin Berdasarkan Siswa
-            </h1>
-            <p className="text-xs text-slate-300">
-              Penilai: <strong className="text-amber-300">{currentUser.nama}</strong> ({currentUser.username})
-            </p>
+            <div>
+              <h2 className="font-bold text-sm text-white">{currentUser.nama}</h2>
+              <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 border border-amber-400/20 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                Juri / Guru Penilai
+              </span>
+            </div>
           </div>
 
-          <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700 text-xs shrink-0 space-y-1">
-            <span className="text-slate-400 block font-semibold">Periode Penilaian Aktif:</span>
-            <span className="text-blue-300 font-bold block">{activePeriode.nama}</span>
+          <div className="text-xs text-slate-300 pt-3 border-t border-slate-800/80 space-y-1.5">
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-slate-400">Periode Aktif:</span>
+              <span className="text-blue-300 font-bold truncate max-w-[120px]">{activePeriode.nama}</span>
+            </div>
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-slate-400">Total Penilaian:</span>
+              <span className="bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded font-mono font-bold">
+                {teacherEvaluations.length} Kelas
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Category Picker Tabs */}
-      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex gap-2 overflow-x-auto">
-        {kategoriList.map((kat) => {
-          const isSelected = selectedKategoriId === kat.id;
-          const isDisiplin = kat.id === 'disiplin';
+        {/* Sidebar Navigation */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 space-y-1">
+          <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 py-1.5 tracking-wider">
+            Menu Utama Juri
+          </p>
 
-          return (
-            <button
-              key={kat.id}
-              onClick={() => setSelectedKategoriId(kat.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                isSelected
-                  ? 'bg-slate-900 text-white shadow-md'
-                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <span>{kat.nama}</span>
-              {!isDisiplin && (
-                <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.2 rounded font-semibold">
-                  Coming Soon
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* If Coming Soon Category Selected */}
-      {selectedKategoriId !== 'disiplin' ? (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center space-y-4">
-          <div className="w-16 h-16 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-center mx-auto">
-            <Sparkles className="w-8 h-8 text-amber-500" />
-          </div>
-          <div className="space-y-1 max-w-md mx-auto">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full">
-              Pengembangan Tahap 2
-            </span>
-            <h2 className="text-xl font-bold text-slate-900 pt-2">
-              Kategori {selectedKategoriObj?.nama} (Coming Soon)
-            </h2>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Pengembangan saat ini difokuskan secara mendalam pada struktur <strong>Penilaian Kelas Disiplin</strong> dengan 4 indikator seragam berbasis per-siswa.
-            </p>
-          </div>
           <button
-            onClick={() => setSelectedKategoriId('disiplin')}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+            type="button"
+            onClick={() => setActiveTab('input')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'input'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            Kembali ke Penilaian Disiplin
+            <div className="flex items-center gap-2.5">
+              <Award className="w-4 h-4" />
+              <span>Input Penilaian</span>
+            </div>
+            <ChevronRight className={`w-3.5 h-3.5 ${activeTab === 'input' ? 'text-white' : 'text-slate-400'}`} />
           </button>
-        </section>
-      ) : (
-        /* DISIPLIN FORM SECTION */
-        <section className="space-y-6">
-          {feedback && (
-            <div
-              className={`p-4 rounded-xl text-xs flex items-start gap-3 ${
-                feedback.type === 'success'
-                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border border-rose-200 text-rose-800'
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('rekap')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'rekap'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Calendar className="w-4 h-4" />
+              <span>Rekapitulasi 1 Minggu</span>
+            </div>
+            <ChevronRight className={`w-3.5 h-3.5 ${activeTab === 'rekap' ? 'text-white' : 'text-slate-400'}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('riwayat')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'riwayat'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileCheck className="w-4 h-4" />
+              <span>Riwayat Penilaian Saya</span>
+            </div>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'riwayat' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
               }`}
             >
-              {feedback.type === 'success' ? (
-                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              )}
-              <div>
-                <strong className="font-bold block text-sm">
-                  {feedback.type === 'success' ? 'Berhasil Disimpan' : 'Peringatan'}
-                </strong>
-                <span>{feedback.message}</span>
+              {teacherEvaluations.length}
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 min-w-0 space-y-6">
+        {/* Header Banner */}
+        <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-lg border border-slate-800 space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-xs font-semibold border border-amber-400/30 mb-2">
+                <Award className="w-3.5 h-3.5" />
+                <span>Sistem Penilaian Juri / Guru</span>
               </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                Penilaian Kategori Disiplin Berdasarkan Siswa
+              </h1>
+              <p className="text-xs text-slate-300 mt-1">
+                Penilai: <strong className="text-amber-300">{currentUser.nama}</strong> ({currentUser.username})
+              </p>
             </div>
-          )}
+
+            <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-xs shrink-0 space-y-1">
+              <span className="text-slate-400 block font-semibold">Periode Penilaian Aktif:</span>
+              <span className="text-blue-300 font-bold block">{activePeriode.nama}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* VIEW 1: INPUT PENILAIAN */}
+        {activeTab === 'input' && (
+          <div className="space-y-6">
+            {/* Category Picker Tabs */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex gap-2 overflow-x-auto">
+              {kategoriList.map((kat) => {
+                const isSelected = selectedKategoriId === kat.id;
+                const isDisiplin = kat.id === 'disiplin';
+
+                return (
+                  <button
+                    key={kat.id}
+                    type="button"
+                    onClick={() => setSelectedKategoriId(kat.id)}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-md'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>{kat.nama}</span>
+                    {!isDisiplin && (
+                      <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.2 rounded font-semibold">
+                        Coming Soon
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* If Coming Soon Category Selected */}
+            {selectedKategoriId !== 'disiplin' ? (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center space-y-4">
+                <div className="w-16 h-16 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-8 h-8 text-amber-500" />
+                </div>
+                <div className="space-y-1 max-w-md mx-auto">
+                  <span className="text-xs font-extrabold uppercase tracking-widest text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full">
+                    Pengembangan Tahap 2
+                  </span>
+                  <h2 className="text-xl font-bold text-slate-900 pt-2">
+                    Kategori {selectedKategoriObj?.nama} (Coming Soon)
+                  </h2>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Pengembangan saat ini difokuskan secara mendalam pada struktur <strong>Penilaian Kelas Disiplin</strong> dengan 4 indikator seragam berbasis per-siswa.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKategoriId('disiplin')}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-colors"
+                >
+                  Kembali ke Penilaian Disiplin
+                </button>
+              </section>
+            ) : (
+              /* DISIPLIN FORM SECTION */
+              <section className="space-y-6">
+                {feedback && (
+                  <div
+                    className={`p-4 rounded-xl text-xs flex items-start gap-3 ${
+                      feedback.type === 'success'
+                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border border-rose-200 text-rose-800'
+                    }`}
+                  >
+                    {feedback.type === 'success' ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <strong className="font-bold block text-sm">
+                        {feedback.type === 'success' ? 'Berhasil Disimpan' : 'Peringatan'}
+                      </strong>
+                      <span>{feedback.message}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* SAVED DATA INDICATOR BANNER */}
+                {hasSavedData && (
+                  <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl text-xs flex items-center gap-2.5 text-amber-900 shadow-2xs">
+                    <FileCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>Data Penilaian Tersimpan Ditemukan:</strong> Memuat hasil penilaian yang sudah pernah diinput untuk <strong>Kelas {kelasList.find((k) => k.id === kelasId)?.nama}</strong> pada tanggal <strong>{tanggal}</strong>. Anda dapat mengubah isian di bawah ini untuk memperbarui nilai.
+                    </span>
+                  </div>
+                )}
 
           {/* Form Header Controls: Date & Class Selector */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -681,8 +838,219 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </button>
             </div>
           </div>
+              </section>
+            )}
+          </div>
+        )}
 
-          {/* Evaluator History */}
+        {/* VIEW 2: REKAPITULASI 1 MINGGU (SENIN S.D. SABTU) */}
+        {activeTab === 'rekap' && (
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <span>Rekapitulasi Pelanggaran 1 Minggu (Senin - Sabtu)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Pantau catatan kedisiplinan harian siswa selama 6 hari kerja untuk mendeteksi pelanggaran berulang.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">Pilih Kelas:</span>
+                <select
+                  value={kelasId}
+                  onChange={(e) => setKelasId(e.target.value)}
+                  className="text-xs border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 font-bold text-slate-900"
+                >
+                  {kelasList.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      Kelas {k.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Indicator Selector Filter */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-1.5 overflow-x-auto">
+                {[
+                  { key: 'usageReport', label: '1. Usage Report' },
+                  { key: 'kehadiran', label: '2. Kehadiran' },
+                  { key: 'helm', label: '3. Pakai Helm' },
+                  { key: 'terlambat', label: '4. Ketepatan Waktu' },
+                ].map((ind) => (
+                  <button
+                    key={ind.key}
+                    type="button"
+                    onClick={() => setActiveWeeklyModalIndicator(ind.key as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                      (activeWeeklyModalIndicator || 'usageReport') === ind.key
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    {ind.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                <input
+                  type="text"
+                  placeholder="Cari siswa..."
+                  value={weeklyModalSearch}
+                  onChange={(e) => setWeeklyModalSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1 border border-slate-300 rounded-lg text-xs w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {/* 6-Day Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-800 text-xs uppercase font-bold border-b border-slate-300">
+                    <th className="py-3 px-3 text-center w-10">NO</th>
+                    <th className="py-3 px-3 min-w-[160px]">NAMA SISWA</th>
+                    {periodDays.map((d) => (
+                      <th key={d.dayName} className="py-3 px-2 text-center font-bold">
+                        <span className="block">{d.dayName}</span>
+                        <span className="text-[10px] text-slate-500 font-normal block font-mono">
+                          {d.dateIso.slice(8, 10)} Oct
+                        </span>
+                      </th>
+                    ))}
+                    <th className="py-3 px-3 text-center min-w-[120px]">TOTAL CATATAN</th>
+                    <th className="py-3 px-3 text-center min-w-[140px]">STATUS EVALUASI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {currentClassStudents
+                    .filter((s) => s.nama.toLowerCase().includes(weeklyModalSearch.toLowerCase()))
+                    .map((siswa, sIdx) => {
+                      let violationCount = 0;
+                      const activeInd = activeWeeklyModalIndicator || 'usageReport';
+
+                      const dayCells = periodDays.map((d) => {
+                        const evalForDay = (allEvaluations || teacherEvaluations).find(
+                          (ev) => ev.tanggal === d.dateIso && ev.kelasId === kelasId
+                        );
+
+                        const studentRec = evalForDay?.disiplinDetail?.siswaDetail?.find(
+                          (sr) => sr.siswaId === siswa.id || sr.nama === siswa.nama
+                        );
+
+                        if (activeInd === 'usageReport') {
+                          const isMengisi = studentRec ? studentRec.isiUsageReport : true;
+                          if (!isMengisi) violationCount++;
+                          return {
+                            label: isMengisi ? '✓' : '❌',
+                            bad: !isMengisi,
+                            detail: isMengisi ? 'Mengisi' : 'Tidak Mengisi',
+                          };
+                        } else if (activeInd === 'kehadiran') {
+                          const st = studentRec ? studentRec.statusKehadiran : 'Hadir';
+                          if (st !== 'Hadir') violationCount++;
+                          return {
+                            label: st === 'Hadir' ? 'H' : st === 'Izin' ? 'I' : st === 'Sakit' ? 'S' : 'A',
+                            bad: st === 'Alpa',
+                            warning: st === 'Izin' || st === 'Sakit',
+                            detail: st,
+                          };
+                        } else if (activeInd === 'helm') {
+                          const isHelm = studentRec ? studentRec.pakaiHelm : true;
+                          if (!isHelm) violationCount++;
+                          return {
+                            label: isHelm ? '✓' : '❌',
+                            bad: !isHelm,
+                            detail: isHelm ? 'Pakai Helm' : 'Tidak Helm',
+                          };
+                        } else {
+                          const isTepat = studentRec ? studentRec.tepatWaktu : true;
+                          if (!isTepat) violationCount++;
+                          return {
+                            label: isTepat ? '✓' : '❌',
+                            bad: !isTepat,
+                            detail: isTepat ? 'Tepat Waktu' : 'Terlambat',
+                          };
+                        }
+                      });
+
+                      const hasHighViolation = violationCount >= 2;
+
+                      return (
+                        <tr
+                          key={siswa.id}
+                          className={`hover:bg-slate-50 transition-colors ${
+                            hasHighViolation ? 'bg-rose-50/40 font-medium' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 px-3 text-center text-slate-500 text-xs font-mono">{sIdx + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900 text-xs block">{siswa.nama}</span>
+                            <span className="text-[10px] text-slate-500 font-mono block">{siswa.nisn}</span>
+                          </td>
+
+                          {dayCells.map((c, dIdx) => (
+                            <td key={dIdx} className="py-2.5 px-2 text-center text-xs">
+                              <span
+                                title={c.detail}
+                                className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                                  c.bad
+                                    ? 'bg-rose-600 text-white shadow-2xs'
+                                    : c.warning
+                                    ? 'bg-amber-500 text-white shadow-2xs'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}
+                              >
+                                {c.label}
+                              </span>
+                            </td>
+                          ))}
+
+                          <td className="py-2.5 px-3 text-center">
+                            <span
+                              className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-extrabold tabular-nums ${
+                                violationCount > 0
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                            >
+                              {violationCount} Kali
+                            </span>
+                          </td>
+
+                          <td className="py-2.5 px-3 text-center text-xs">
+                            {violationCount >= 2 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-300">
+                                <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                Perlu Perhatian
+                              </span>
+                            ) : violationCount === 1 ? (
+                              <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                Catatan Ringan
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                Sangat Baik
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* VIEW 3: RIWAYAT PENILAIAN SAYA */}
+        {activeTab === 'riwayat' && (
           <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
             <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
@@ -749,6 +1117,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </p>
             )}
           </section>
+        )}
 
           {/* WEEKLY STUDENT RECAP MODAL (SENIN S.D. SABTU) FOR FREQUENT OFFENDER IDENTIFICATION */}
           {activeWeeklyModalIndicator && (
@@ -1045,8 +1414,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               </div>
             </div>
           )}
-        </section>
-      )}
-    </div>
-  );
+        </main>
+      </div>
+    );
 };
