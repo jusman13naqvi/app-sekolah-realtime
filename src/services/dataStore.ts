@@ -682,6 +682,52 @@ class RealtimeDataStoreService {
     return target;
   }
 
+  public async updatePeriode(id: string, periodeData: Partial<Omit<Periode, 'id'>>): Promise<Periode> {
+    const idx = this.periodeList.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error('Periode tidak ditemukan');
+
+    // If setting status to 'aktif', archive others
+    if (periodeData.status === 'aktif') {
+      for (const p of this.periodeList) {
+        if (p.id !== id && p.status === 'aktif') {
+          await updateDoc(doc(db, 'periode', p.id), { status: 'arsip' });
+        }
+      }
+    }
+
+    const updated: Periode = { ...this.periodeList[idx], ...periodeData };
+    try {
+      await setDoc(doc(db, 'periode', id), updated);
+      await this.addLog('admin', 'Administrator', 'UBAH_PERIODE', `Memperbarui data periode: ${updated.nama}`);
+      return updated;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `periode/${id}`);
+      throw err;
+    }
+  }
+
+  public async deletePeriode(id: string): Promise<void> {
+    try {
+      const idx = this.periodeList.findIndex((p) => p.id === id);
+      const targetName = idx !== -1 ? this.periodeList[idx].nama : id;
+      const wasActive = idx !== -1 ? this.periodeList[idx].status === 'aktif' : false;
+
+      await deleteDoc(doc(db, 'periode', id));
+      await this.addLog('admin', 'Administrator', 'HAPUS_PERIODE', `Menghapus periode: ${targetName}`);
+
+      // If deleted period was active, set remaining period as active if available
+      if (wasActive) {
+        const remaining = this.periodeList.filter((p) => p.id !== id);
+        if (remaining.length > 0) {
+          await updateDoc(doc(db, 'periode', remaining[0].id), { status: 'aktif' });
+        }
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `periode/${id}`);
+      throw err;
+    }
+  }
+
   public getPenilaianList(periodeId?: string): Penilaian[] {
     const pid = periodeId || this.getActivePeriode().id;
     return this.penilaianList.filter((p) => p.periodeId === pid);
