@@ -185,6 +185,16 @@ export default function App() {
     triggerRefresh();
   };
 
+  const handleUpdatePeriode = async (id: string, periodeData: Partial<Omit<import('./types').Periode, 'id'>>) => {
+    await dataStore.updatePeriode(id, periodeData);
+    triggerRefresh();
+  };
+
+  const handleDeletePeriode = async (id: string) => {
+    await dataStore.deletePeriode(id);
+    triggerRefresh();
+  };
+
   const handleUpdateSettings = async (newSettings: Partial<import('./types').Pengaturan>) => {
     await dataStore.updateSettings(newSettings);
     triggerRefresh();
@@ -277,6 +287,7 @@ export default function App() {
               kategoriList={kategoriList}
               activePeriode={activePeriode}
               teacherEvaluations={teacherEvaluations}
+              allEvaluations={allEvaluations}
               getSiswaByKelas={(kId) => dataStore.getSiswaListByKelas(kId)}
               onSubmitPenilaianDisiplin={handleSubmitPenilaianDisiplin}
               onUpdatePenilaian={handleUpdatePenilaian}
@@ -306,6 +317,8 @@ export default function App() {
               onImportSiswaCSV={handleImportSiswaCSV}
               onCreatePeriode={handleCreatePeriode}
               onSetActivePeriode={handleSetActivePeriode}
+              onUpdatePeriode={handleUpdatePeriode}
+              onDeletePeriode={handleDeletePeriode}
               onDeleteEvaluation={handleDeleteEvaluation}
               onUpdateSettings={handleUpdateSettings}
               onExportCSV={handleExportCSV}
