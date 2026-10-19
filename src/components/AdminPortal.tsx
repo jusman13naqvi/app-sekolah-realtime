@@ -44,9 +44,11 @@ interface AdminPortalProps {
   onAddSiswa: (s: Omit<Siswa, 'id'>) => void;
   onDeleteSiswa: (siswaId: string) => void;
   onDeleteAllSiswa: () => void;
-  onImportSiswaCSV: (csv: string) => { importedCount: number; errors: string[] };
+  onImportSiswaCSV: (csv: string) => Promise<{ importedCount: number; errors: string[] }>;
   onCreatePeriode: (p: Omit<Periode, 'id' | 'status'>) => void;
   onSetActivePeriode: (id: string) => void;
+  onUpdatePeriode: (id: string, p: Partial<Omit<Periode, 'id'>>) => void;
+  onDeletePeriode: (id: string) => void;
   onDeleteEvaluation: (id: string, alasan: string) => void;
   onUpdateSettings: (s: Partial<Pengaturan>) => void;
   onExportCSV: () => void;
@@ -74,6 +76,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onImportSiswaCSV,
   onCreatePeriode,
   onSetActivePeriode,
+  onUpdatePeriode,
+  onDeletePeriode,
   onDeleteEvaluation,
   onUpdateSettings,
   onExportCSV,
@@ -107,6 +111,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [editKelasWali, setEditKelasWali] = useState('');
   const [editKelasStatus, setEditKelasStatus] = useState<'aktif' | 'nonaktif'>('aktif');
 
+  // Periode Form & Edit
+  const [showAddPeriodeModal, setShowAddPeriodeModal] = useState(false);
+  const [newPeriodeNama, setNewPeriodeNama] = useState('');
+  const [newTanggalMulai, setNewTanggalMulai] = useState('');
+  const [newTanggalSelesai, setNewTanggalSelesai] = useState('');
+
+  const [editingPeriode, setEditingPeriode] = useState<Periode | null>(null);
+  const [editPeriodeNama, setEditPeriodeNama] = useState('');
+  const [editPeriodeMulai, setEditPeriodeMulai] = useState('');
+  const [editPeriodeSelesai, setEditPeriodeSelesai] = useState('');
+  const [editPeriodeStatus, setEditPeriodeStatus] = useState<'aktif' | 'arsip'>('aktif');
+
+  const handleSaveEditPeriode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPeriode) return;
+    try {
+      onUpdatePeriode(editingPeriode.id, {
+        nama: editPeriodeNama.trim(),
+        tanggalMulai: editPeriodeMulai,
+        tanggalSelesai: editPeriodeSelesai,
+        status: editPeriodeStatus,
+      });
+      setEditingPeriode(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal merubah data periode');
+    }
+  };
+
   // Siswa Form
   const [showAddSiswaModal, setShowAddSiswaModal] = useState(false);
   const [showImportSiswaModal, setShowImportSiswaModal] = useState(false);
@@ -115,12 +147,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [newSiswaNisn, setNewSiswaNisn] = useState('');
   const [newSiswaKelasId, setNewSiswaKelasId] = useState<string>(kelasList[0]?.id || '7a');
   const [csvText, setCsvText] = useState('');
-
-  // Periode Form
-  const [showAddPeriodeModal, setShowAddPeriodeModal] = useState(false);
-  const [newPeriodeNama, setNewPeriodeNama] = useState('');
-  const [newTanggalMulai, setNewTanggalMulai] = useState('');
-  const [newTanggalSelesai, setNewTanggalSelesai] = useState('');
 
   // Evaluation Delete Modal
   const [deletingItem, setDeletingItem] = useState<Penilaian | null>(null);
@@ -260,115 +286,183 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   );
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-6 sm:p-8 shadow-lg border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-xs font-semibold border border-amber-400/30 mb-2">
-            <Shield className="w-3.5 h-3.5" />
-            <span>Panel Administrator Utama</span>
+    <div className="flex flex-col lg:flex-row gap-6 pb-12">
+      {/* SIDEBAR ADMIN NAVIGATION */}
+      <aside className="w-full lg:w-64 shrink-0 space-y-4">
+        {/* Admin Card */}
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-md space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold text-base border border-blue-400/30">
+              <Shield className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="font-bold text-sm text-white">Panel Administrator</h2>
+              <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-400/20 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                Full Privileges
+              </span>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Pengelolaan Akun Juri, Data Siswa & Pengaturan Logo
-          </h1>
-          <p className="text-xs text-slate-300">
-            SMP Negeri 7 Muara Badak — Buat Akun Juri, Reset Password, Kelola Siswa & Ganti Logo Sekolah.
-          </p>
+
+          <div className="text-xs text-slate-300 pt-3 border-t border-slate-800/80 space-y-1.5">
+            <p className="text-[11px] text-slate-400">{settings.namaSekolah}</p>
+            <button
+              onClick={onExportCSV}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 mt-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh CSV / Excel</span>
+            </button>
+          </div>
         </div>
 
-        <button
-          onClick={onExportCSV}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-2 self-start sm:self-auto shrink-0"
-        >
-          <Download className="w-4 h-4" />
-          <span>Unduh Laporan CSV / Excel</span>
-        </button>
-      </div>
+        {/* Sidebar Menu Items */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 space-y-1">
+          <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 py-1.5 tracking-wider">
+            Pengelolaan Data
+          </p>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'users' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Kelola Akun Juri ({users.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'users' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Users className="w-4 h-4 text-blue-400" />
+              <span>Kelola Akun Juri</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {users.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('siswa')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'siswa' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <UserPlus className="w-4 h-4 text-blue-400" />
-          <span>Kelola Data Siswa ({siswaList.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('siswa')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'siswa' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <UserPlus className="w-4 h-4 text-emerald-400" />
+              <span>Kelola Data Siswa</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'siswa' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {siswaList.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('kelas')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'kelas' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <School className="w-4 h-4" />
-          <span>Kelola Kelas ({kelasList.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('kelas')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'kelas' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <School className="w-4 h-4 text-amber-400" />
+              <span>Kelola Kelas</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'kelas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {kelasList.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('periode')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'periode' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Periode Penilaian ({periodeList.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('periode')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'periode' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Calendar className="w-4 h-4 text-purple-400" />
+              <span>Periode Penilaian</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'periode' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {periodeList.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('evaluations')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'evaluations' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>Semua Penilaian ({allEvaluations.length})</span>
-        </button>
+          <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 pt-3 pb-1 tracking-wider">
+            Sistem & Laporan
+          </p>
 
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'logs' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          <span>Audit Log ({logs.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('evaluations')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'evaluations' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileSpreadsheet className="w-4 h-4 text-indigo-400" />
+              <span>Semua Penilaian</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'evaluations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {allEvaluations.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'settings' ? 'bg-slate-900 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>Pengaturan & Logo Sekolah</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'logs' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Shield className="w-4 h-4 text-rose-400" />
+              <span>Audit Log</span>
+            </div>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {logs.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('apps-script')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'apps-script'
-              ? 'bg-emerald-600 text-white shadow font-extrabold'
-              : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
-          }`}
-        >
-          <Database className="w-4 h-4 text-emerald-600" />
-          <span>Database Online Sync</span>
-        </button>
-      </div>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="w-4 h-4 text-slate-400" />
+              <span>Pengaturan & Logo</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('apps-script')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'apps-script'
+                ? 'bg-emerald-600 text-white shadow-md font-extrabold'
+                : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Database className="w-4 h-4 text-emerald-600" />
+              <span>Status DB Sync</span>
+            </div>
+            <span className="text-[10px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.5 rounded">
+              Live
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 min-w-0 space-y-6">
+        {/* Banner Header */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-6 shadow-lg border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-xs font-semibold border border-amber-400/30 mb-2">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Panel Administrator Utama</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              Pengelolaan Akun Juri, Data Siswa & Pengaturan Logo
+            </h1>
+            <p className="text-xs text-slate-300 mt-1">
+              SMP Negeri 7 Muara Badak — Buat Akun Juri, Reset Password, Kelola Siswa & Ganti Logo Sekolah.
+            </p>
+          </div>
+        </div>
 
       {/* TAB 1: USERS & RESET PASSWORD */}
       {activeTab === 'users' && (
@@ -754,14 +848,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </p>
                   </div>
 
-                  {!isActive && (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {!isActive && (
+                      <button
+                        type="button"
+                        onClick={() => onSetActivePeriode(p.id)}
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-bold shadow-2xs"
+                      >
+                        Aktifkan Minggu Ini
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => onSetActivePeriode(p.id)}
-                      className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-bold shadow-2xs self-start sm:self-auto"
+                      type="button"
+                      onClick={() => {
+                        setEditingPeriode(p);
+                        setEditPeriodeNama(p.nama);
+                        setEditPeriodeMulai(p.tanggalMulai);
+                        setEditPeriodeSelesai(p.tanggalSelesai);
+                        setEditPeriodeStatus(p.status);
+                      }}
+                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 bg-white"
+                      title="Edit Judul & Tanggal Periode"
                     >
-                      Aktifkan Minggu Ini
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                  )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Hapus "Periode ${p.nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+                          onDeletePeriode(p.id);
+                        }
+                      }}
+                      className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 bg-white"
+                      title="Hapus Periode Ini"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -947,6 +1072,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           />
         </section>
       )}
+      </main>
 
       {/* MODAL: RESET PASSWORD */}
       {resetTargetUser && (
@@ -1399,6 +1525,77 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 Ya, Batalkan
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT PERIODE */}
+      {editingPeriode && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2">Edit Periode Penilaian</h3>
+            <form onSubmit={handleSaveEditPeriode} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama / Judul Periode</label>
+                <input
+                  type="text"
+                  required
+                  value={editPeriodeNama}
+                  onChange={(e) => setEditPeriodeNama(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Mulai (Senin)</label>
+                <input
+                  type="date"
+                  required
+                  value={editPeriodeMulai}
+                  onChange={(e) => setEditPeriodeMulai(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Selesai (Sabtu)</label>
+                <input
+                  type="date"
+                  required
+                  value={editPeriodeSelesai}
+                  onChange={(e) => setEditPeriodeSelesai(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Periode</label>
+                <select
+                  value={editPeriodeStatus}
+                  onChange={(e) => setEditPeriodeStatus(e.target.value as 'aktif' | 'arsip')}
+                  className="w-full border p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value="aktif">Aktif (Minggu Ini)</option>
+                  <option value="arsip">Arsip (Non-Aktif)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingPeriode(null)}
+                  className="px-3.5 py-2 text-slate-600 font-semibold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
