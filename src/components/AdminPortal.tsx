@@ -217,12 +217,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
   };
 
-  const handleImportCSV = () => {
+  const handleImportCSV = async () => {
     if (!csvText.trim()) {
       alert('Masukkan teks CSV data siswa terlebih dahulu!');
       return;
     }
-    const res = onImportSiswaCSV(csvText);
+    const res = await onImportSiswaCSV(csvText);
     alert(`Berhasil mengimpor ${res.importedCount} data siswa!`);
     setShowImportSiswaModal(false);
     setCsvText('');
@@ -290,24 +290,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* SIDEBAR ADMIN NAVIGATION */}
       <aside className="w-full lg:w-64 shrink-0 space-y-4">
         {/* Admin Card */}
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-md space-y-3">
+        <div className="bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 border border-indigo-800/40 shadow-lg space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold text-base border border-blue-400/30">
-              <Shield className="w-5 h-5 text-blue-400" />
+              <Shield className="w-5 h-5 text-blue-300" />
             </div>
             <div>
-              <h2 className="font-bold text-sm text-white">Panel Administrator</h2>
-              <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-400/20 px-2 py-0.5 rounded-full inline-block mt-0.5">
+              <h2 className="font-extrabold text-sm text-white">Panel Administrator</h2>
+              <span className="text-[10px] text-emerald-300 font-extrabold bg-emerald-500/15 border border-emerald-400/30 px-2 py-0.5 rounded-full inline-block mt-0.5">
                 Full Privileges
               </span>
             </div>
           </div>
 
-          <div className="text-xs text-slate-300 pt-3 border-t border-slate-800/80 space-y-1.5">
-            <p className="text-[11px] text-slate-400">{settings.namaSekolah}</p>
+          <div className="text-xs text-slate-300 pt-3 border-t border-indigo-800/60 space-y-1.5">
+            <p className="text-[11px] text-blue-200/80 font-medium">{settings.namaSekolah}</p>
             <button
               onClick={onExportCSV}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 mt-2"
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 mt-2 active:scale-95"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh CSV / Excel</span>
@@ -316,7 +316,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         {/* Sidebar Menu Items */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 space-y-1">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-3 space-y-1">
           <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 py-1.5 tracking-wider">
             Pengelolaan Data
           </p>
@@ -324,14 +324,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('users')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'users' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'users' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Users className="w-4 h-4 text-blue-400" />
+              <Users className={`w-4 h-4 ${activeTab === 'users' ? 'text-white' : 'text-blue-600'}`} />
               <span>Kelola Akun Juri</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {users.length}
             </span>
           </button>
@@ -339,14 +339,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('siswa')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'siswa' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'siswa' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <UserPlus className="w-4 h-4 text-emerald-400" />
+              <UserPlus className={`w-4 h-4 ${activeTab === 'siswa' ? 'text-white' : 'text-emerald-600'}`} />
               <span>Kelola Data Siswa</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'siswa' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'siswa' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {siswaList.length}
             </span>
           </button>
@@ -354,14 +354,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('kelas')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'kelas' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'kelas' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <School className="w-4 h-4 text-amber-400" />
+              <School className={`w-4 h-4 ${activeTab === 'kelas' ? 'text-white' : 'text-amber-600'}`} />
               <span>Kelola Kelas</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'kelas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'kelas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {kelasList.length}
             </span>
           </button>
@@ -369,14 +369,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('periode')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'periode' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'periode' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-purple-400" />
+              <Calendar className={`w-4 h-4 ${activeTab === 'periode' ? 'text-white' : 'text-purple-600'}`} />
               <span>Periode Penilaian</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'periode' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'periode' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {periodeList.length}
             </span>
           </button>
@@ -388,14 +388,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('evaluations')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'evaluations' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'evaluations' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <FileSpreadsheet className="w-4 h-4 text-indigo-400" />
+              <FileSpreadsheet className={`w-4 h-4 ${activeTab === 'evaluations' ? 'text-white' : 'text-indigo-600'}`} />
               <span>Semua Penilaian</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'evaluations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'evaluations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {allEvaluations.length}
             </span>
           </button>
@@ -403,14 +403,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('logs')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'logs' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'logs' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Shield className="w-4 h-4 text-rose-400" />
+              <Shield className={`w-4 h-4 ${activeTab === 'logs' ? 'text-white' : 'text-rose-600'}`} />
               <span>Audit Log</span>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
               {logs.length}
             </span>
           </button>
@@ -418,11 +418,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             onClick={() => setActiveTab('settings')}
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
-              activeTab === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100'
+              activeTab === 'settings' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-700 hover:bg-slate-100/80'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Settings className="w-4 h-4 text-slate-400" />
+              <Settings className={`w-4 h-4 ${activeTab === 'settings' ? 'text-white' : 'text-slate-500'}`} />
               <span>Pengaturan & Logo</span>
             </div>
           </button>
@@ -432,7 +432,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
               activeTab === 'apps-script'
                 ? 'bg-emerald-600 text-white shadow-md font-extrabold'
-                : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200'
             }`}
           >
             <div className="flex items-center gap-2.5">
