@@ -50,7 +50,7 @@ interface AdminPortalProps {
   onUpdatePeriode: (id: string, p: Partial<Omit<Periode, 'id'>>) => void;
   onDeletePeriode: (id: string) => void;
   onDeleteEvaluation: (id: string, alasan: string) => void;
-  onUpdateSettings: (s: Partial<Pengaturan>) => void;
+  onUpdateSettings: (s: Partial<Pengaturan>) => Promise<void> | void;
   onExportCSV: () => void;
 }
 
@@ -154,7 +154,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Settings Form & Logo Upload
   const [settingsForm, setSettingsForm] = useState<Pengaturan>(settings);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isCompressingLogo, setIsCompressingLogo] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  React.useEffect(() => {
+    setSettingsForm(settings);
+  }, [settings]);
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,23 +266,77 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file logo maksimal 2MB!');
+    if (!file.type.startsWith('image/')) {
+      alert('File yang dipilih harus berupa gambar (PNG, JPG, SVG, WebP)!');
       return;
     }
 
+    setIsCompressingLogo(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64Url = event.target?.result as string;
-      setSettingsForm((prev) => ({ ...prev, logoUrl: base64Url }));
+      const rawResult = event.target?.result as string;
+
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 360;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/png');
+            setSettingsForm((prev) => ({ ...prev, logoUrl: compressedBase64 }));
+          } else {
+            setSettingsForm((prev) => ({ ...prev, logoUrl: rawResult }));
+          }
+        } catch (err) {
+          setSettingsForm((prev) => ({ ...prev, logoUrl: rawResult }));
+        } finally {
+          setIsCompressingLogo(false);
+        }
+      };
+      img.onerror = () => {
+        setIsCompressingLogo(false);
+        alert('Gagal memuat gambar logo.');
+      };
+      img.src = rawResult;
+    };
+    reader.onerror = () => {
+      setIsCompressingLogo(false);
+      alert('Gagal membaca file logo.');
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateSettings(settingsForm);
-    alert('Pengaturan sekolah & logo berhasil diperbarui!');
+    setIsSavingSettings(true);
+    try {
+      await onUpdateSettings(settingsForm);
+      alert('Pengaturan sekolah, alamat, dan logo berhasil disimpan secara permanen!');
+    } catch (err: unknown) {
+      console.error('Failed to save settings:', err);
+      alert('Gagal menyimpan pengaturan: ' + (err instanceof Error ? err.message : 'Terjadi kesalahan sistem'));
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const filteredSiswa = siswaList.filter(
@@ -1053,8 +1113,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               />
             </div>
 
-            <button type="submit" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-colors">
-              Simpan Pengaturan & Logo
+            <button
+              type="submit"
+              disabled={isSavingSettings || isCompressingLogo}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2"
+            >
+              {isSavingSettings ? (
+                <span>Menyimpan ke Database Online...</span>
+              ) : isCompressingLogo ? (
+                <span>Memproses Gambar Logo...</span>
+              ) : (
+                <span>Simpan Pengaturan & Logo</span>
+              )}
             </button>
           </form>
         </section>
