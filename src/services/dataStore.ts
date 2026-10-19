@@ -239,16 +239,10 @@ class RealtimeDataStoreService {
       // 2. Kelas Listener
       onSnapshot(
         collection(db, 'kelas'),
-        async (snapshot) => {
-          if (snapshot.empty) {
-            for (const k of INITIAL_KELAS) {
-              await setDoc(doc(db, 'kelas', k.id), k);
-            }
-          } else {
-            const loaded: Kelas[] = [];
-            snapshot.docs.forEach((d) => loaded.push(d.data() as Kelas));
-            this.kelasList = loaded;
-          }
+        (snapshot) => {
+          const loaded: Kelas[] = [];
+          snapshot.docs.forEach((d) => loaded.push({ id: d.id, ...(d.data() as Omit<Kelas, 'id'>) }));
+          this.kelasList = loaded;
           this.notify();
         },
         (err) => handleFirestoreError(err, OperationType.GET, 'kelas')
@@ -576,6 +570,58 @@ class RealtimeDataStoreService {
       return kelasObj;
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `kelas/${kId}`);
+      throw err;
+    }
+  }
+
+  public async updateKelas(id: string, kelasData: Partial<Omit<Kelas, 'id'>>): Promise<Kelas> {
+    const idx = this.kelasList.findIndex((k) => k.id === id);
+    if (idx === -1) throw new Error('Kelas tidak ditemukan');
+
+    const updated: Kelas = { ...this.kelasList[idx], ...kelasData };
+    try {
+      await setDoc(doc(db, 'kelas', id), updated);
+      await this.addLog('admin', 'Administrator', 'UBAH_KELAS', `Memperbarui data kelas: ${updated.nama}`);
+      return updated;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `kelas/${id}`);
+      throw err;
+    }
+  }
+
+  public async deleteKelas(id: string): Promise<void> {
+    try {
+      const idx = this.kelasList.findIndex((k) => k.id === id);
+      const targetName = idx !== -1 ? this.kelasList[idx].nama : id;
+      await deleteDoc(doc(db, 'kelas', id));
+      await this.addLog('admin', 'Administrator', 'HAPUS_KELAS', `Menghapus kelas: ${targetName}`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `kelas/${id}`);
+      throw err;
+    }
+  }
+
+  public async deleteAllKelas(): Promise<void> {
+    try {
+      const snapshot = await getDocs(collection(db, 'kelas'));
+      for (const d of snapshot.docs) {
+        await deleteDoc(doc(db, 'kelas', d.id));
+      }
+      await this.addLog('admin', 'Administrator', 'HAPUS_SEMUA_KELAS', 'Menghapus seluruh data kelas di database.');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, 'kelas');
+      throw err;
+    }
+  }
+
+  public async seedSampleKelas(): Promise<void> {
+    try {
+      for (const k of INITIAL_KELAS) {
+        await setDoc(doc(db, 'kelas', k.id), k);
+      }
+      await this.addLog('admin', 'Administrator', 'SEED_KELAS', 'Mengisi ulang contoh daftar kelas standar (7A-9B).');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'kelas');
       throw err;
     }
   }
