@@ -21,18 +21,18 @@ export const Header: React.FC<HeaderProps> = ({
   settings,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 text-white border-b border-slate-800 shadow-lg">
+    <header className="sticky top-0 z-40 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 text-white border-b border-indigo-800/40 shadow-lg backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Brand & Custom Logo */}
         <button
           onClick={() => onNavigate('dashboard')}
-          className="flex items-center gap-3 group text-left focus:outline-none shrink-0"
+          className="flex items-center gap-3 group text-left focus:outline-none shrink-0 transition-transform active:scale-95"
         >
           {settings.logoUrl ? (
             <img
               src={settings.logoUrl}
               alt="Logo Sekolah"
-              className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 border border-slate-700"
+              className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 border border-white/20 shadow-xs"
             />
           ) : (
             <SchoolLogo size={38} />
@@ -42,36 +42,36 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-base font-bold text-white tracking-tight leading-tight group-hover:text-blue-300 transition-colors">
               {settings.namaSekolah || 'SMP Negeri 7 Muara Badak'}
             </span>
-            <span className="text-xs text-slate-400 font-normal">
+            <span className="text-xs text-blue-200/80 font-normal">
               {settings.judulDashboard || 'Dashboard Prestasi Kelas'}
             </span>
           </div>
         </button>
 
-        {/* Zone 2: Professional Navigation Links (No Apps Script button) */}
-        <nav className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-300">
+        {/* Zone 2: Professional Navigation Links */}
+        <nav className="hidden md:flex items-center gap-2 text-xs font-semibold text-slate-200">
           <button
             onClick={() => onNavigate('dashboard')}
-            className={`px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               currentView === 'dashboard'
-                ? 'bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30'
-                : 'hover:text-white hover:bg-slate-800'
+                ? 'bg-blue-600/40 text-white font-bold border border-blue-400/50 shadow-sm'
+                : 'hover:text-white hover:bg-white/10 text-slate-300'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" />
+            <LayoutDashboard className="w-4 h-4 text-blue-400" />
             <span>Dashboard Publik</span>
           </button>
 
           {currentUser?.role === 'guru' || currentUser?.role === 'admin' ? (
             <button
               onClick={() => onNavigate('guru')}
-              className={`px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 currentView === 'guru'
-                  ? 'bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30'
-                  : 'hover:text-white hover:bg-slate-800'
+                  ? 'bg-emerald-600/40 text-white font-bold border border-emerald-400/50 shadow-sm'
+                  : 'hover:text-white hover:bg-white/10 text-slate-300'
               }`}
             >
-              <Award className="w-4 h-4" />
+              <Award className="w-4 h-4 text-emerald-400" />
               <span>Input Penilaian Juri</span>
             </button>
           ) : null}
@@ -79,13 +79,13 @@ export const Header: React.FC<HeaderProps> = ({
           {currentUser?.role === 'admin' ? (
             <button
               onClick={() => onNavigate('admin')}
-              className={`px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 currentView === 'admin'
-                  ? 'bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30'
-                  : 'hover:text-white hover:bg-slate-800'
+                  ? 'bg-indigo-600/40 text-white font-bold border border-indigo-400/50 shadow-sm'
+                  : 'hover:text-white hover:bg-white/10 text-slate-300'
               }`}
             >
-              <ShieldAlert className="w-4 h-4" />
+              <ShieldAlert className="w-4 h-4 text-indigo-400" />
               <span>Panel Administrator</span>
             </button>
           ) : null}
@@ -93,32 +93,32 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: User Profile & Session Action */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden lg:block text-right pr-2 border-r border-slate-700">
-            <span className="block text-[11px] text-slate-400 font-medium">Periode Aktif</span>
-            <span className="block text-xs font-semibold text-blue-300">{activePeriodeName}</span>
+          <div className="hidden lg:block text-right pr-3 border-r border-indigo-800/60">
+            <span className="block text-[11px] text-blue-200/70 font-medium">Periode Aktif</span>
+            <span className="block text-xs font-extrabold text-amber-300 tracking-wide">{activePeriodeName}</span>
           </div>
 
           {currentUser ? (
             <div className="flex items-center gap-2">
               <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-semibold text-white leading-tight">{currentUser.nama}</span>
-                <span className="text-[10px] text-blue-400 uppercase font-bold tracking-wider">
+                <span className="text-xs font-bold text-white leading-tight">{currentUser.nama}</span>
+                <span className="text-[10px] text-emerald-400 uppercase font-extrabold tracking-wider">
                   {currentUser.role === 'admin' ? 'Administrator' : 'Juri / Guru Penilai'}
                 </span>
               </div>
               <button
                 onClick={onLogout}
                 title="Keluar / Logout"
-                className="p-2 text-slate-300 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                className="p-2 text-slate-300 hover:text-rose-300 hover:bg-rose-500/20 rounded-xl transition-all flex items-center gap-1 text-xs border border-transparent hover:border-rose-500/30"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Keluar</span>
+                <span className="hidden sm:inline font-semibold">Keluar</span>
               </button>
             </div>
           ) : (
             <button
               onClick={() => onNavigate('login')}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded-xl shadow transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
             >
               <LogIn className="w-4 h-4" />
               <span>Login Juri / Admin</span>
