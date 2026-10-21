@@ -4,15 +4,25 @@ interface SchoolLogoProps {
   className?: string;
   size?: number;
   showText?: boolean;
+  logoUrl?: string;
 }
 
 export const SchoolLogo: React.FC<SchoolLogoProps> = ({
   className = '',
   size = 48,
   showText = false,
+  logoUrl,
 }) => {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt="Logo Sekolah"
+          style={{ width: size, height: size }}
+          className="object-contain shrink-0 rounded-xl"
+        />
+      ) : (
       <svg
         width={size}
         height={size}
@@ -65,6 +75,7 @@ export const SchoolLogo: React.FC<SchoolLogoProps> = ({
           7
         </text>
       </svg>
+      )}
 
       {showText && (
         <div className="flex flex-col">
