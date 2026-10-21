@@ -34,6 +34,8 @@ interface AdminPortalProps {
   logs: LogAktivitas[];
   settings: Pengaturan;
   onAddUser: (u: Omit<User, 'id' | 'dibuatPada'>, pass: string) => void;
+  onUpdateUser: (userId: string, u: Partial<User>) => void;
+  onDeleteUser: (userId: string) => void;
   onResetPassword: (userId: string, newPass: string) => void;
   onToggleUserStatus: (id: string) => void;
   onAddKelas: (k: Omit<Kelas, 'id'>) => void;
@@ -63,6 +65,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   logs,
   settings,
   onAddUser,
+  onUpdateUser,
+  onDeleteUser,
   onResetPassword,
   onToggleUserStatus,
   onAddKelas,
@@ -97,6 +101,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Reset Password State
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
   const [resetNewPass, setResetNewPass] = useState('');
+
+  // Edit User State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editUserNama, setEditUserNama] = useState('');
+  const [editUserNip, setEditUserNip] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'guru' | 'admin'>('guru');
+  const [editUserStatus, setEditUserStatus] = useState<'aktif' | 'nonaktif'>('aktif');
+
+  const handleSaveEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editUserNama.trim()) {
+      alert('Nama lengkap tidak boleh kosong!');
+      return;
+    }
+    try {
+      onUpdateUser(editingUser.id, {
+        nama: editUserNama.trim(),
+        nip: editUserNip.trim(),
+        role: editUserRole,
+        status: editUserStatus,
+      });
+      alert(`Berhasil memperbarui data akun ${editingUser.username}!`);
+      setEditingUser(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal memperbarui data akun');
+    }
+  };
 
   // Kelas Form
   const [showAddKelasModal, setShowAddKelasModal] = useState(false);
@@ -582,27 +614,61 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
                         <button
+                          type="button"
+                          onClick={() => {
+                            setEditingUser(u);
+                            setEditUserNama(u.nama);
+                            setEditUserNip(u.nip || '');
+                            setEditUserRole(u.role);
+                            setEditUserStatus(u.status);
+                          }}
+                          className="text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Edit Akun & NIP"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => {
                             setResetTargetUser(u);
                             setResetNewPass('');
                           }}
                           className="text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Reset Password"
                         >
                           <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Reset Password</span>
+                          <span>Reset</span>
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => onToggleUserStatus(u.id)}
-                          className="text-xs font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
+                          className="p-1 text-slate-600 hover:text-slate-900 inline-flex items-center"
+                          title="Ganti Status Aktif/Nonaktif"
                         >
                           {u.status === 'aktif' ? (
                             <ToggleRight className="w-5 h-5 text-emerald-600" />
                           ) : (
                             <ToggleLeft className="w-5 h-5 text-slate-400" />
                           )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Apakah Anda yakin ingin MENGHAPUS akun "${u.nama}" (${u.username})?`)) {
+                              onDeleteUser(u.id);
+                            }
+                          }}
+                          className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Hapus Akun Ini"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Hapus</span>
                         </button>
                       </div>
                     </td>
@@ -1383,6 +1449,92 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg">
                   Simpan Akun
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT USER & NIP */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-blue-600" />
+              <span>Edit Akun ({editingUser.username})</span>
+            </h3>
+            <form onSubmit={handleSaveEditUser} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Username (ID)</label>
+                <input
+                  type="text"
+                  disabled
+                  value={editingUser.username}
+                  className="w-full border p-2 rounded-lg text-sm bg-slate-100 font-mono text-slate-600 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Lengkap Akun</label>
+                <input
+                  type="text"
+                  required
+                  value={editUserNama}
+                  onChange={(e) => setEditUserNama(e.target.value)}
+                  placeholder="Nama Lengkap / Nama Admin"
+                  className="w-full border p-2.5 rounded-lg text-sm font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">NIP (Nomor Induk Pegawai)</label>
+                <input
+                  type="text"
+                  value={editUserNip}
+                  onChange={(e) => setEditUserNip(e.target.value)}
+                  placeholder="Misal: 198503152010011005"
+                  className="w-full border p-2.5 rounded-lg text-sm font-mono text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Hak Akses / Role</label>
+                <select
+                  value={editUserRole}
+                  onChange={(e) => setEditUserRole(e.target.value as 'guru' | 'admin')}
+                  className="w-full border p-2.5 rounded-lg text-sm font-semibold text-slate-900"
+                >
+                  <option value="guru">Juri / Guru Penilai</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Akun</label>
+                <select
+                  value={editUserStatus}
+                  onChange={(e) => setEditUserStatus(e.target.value as 'aktif' | 'nonaktif')}
+                  className="w-full border p-2.5 rounded-lg text-sm font-semibold text-slate-900"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-3.5 py-2 text-slate-600 hover:text-slate-900 text-xs font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
+                >
+                  Simpan Perubahan Akun
                 </button>
               </div>
             </form>
