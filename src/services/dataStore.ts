@@ -548,6 +548,49 @@ class RealtimeDataStoreService {
     }
   }
 
+  public async updateUser(userId: string, userData: Partial<User>): Promise<User> {
+    const user = this.users.find((u) => u.id === userId);
+    if (!user) throw new Error('Pengguna tidak ditemukan!');
+
+    const updatedUser: User = { ...user, ...userData };
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        nama: updatedUser.nama,
+        nip: updatedUser.nip || '',
+        role: updatedUser.role,
+        status: updatedUser.status,
+      });
+      await this.addLog(
+        'admin',
+        'Administrator',
+        'UPDATE_USER',
+        `Memperbarui data akun ${updatedUser.username} (${updatedUser.nama}, NIP: ${updatedUser.nip || '-'})`
+      );
+      return updatedUser;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+      throw err;
+    }
+  }
+
+  public async deleteUser(userId: string): Promise<void> {
+    const user = this.users.find((u) => u.id === userId);
+    if (!user) throw new Error('Pengguna tidak ditemukan!');
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      await this.addLog(
+        'admin',
+        'Administrator',
+        'HAPUS_USER',
+        `Menghapus akun ${user.username} (${user.nama})`
+      );
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
+      throw err;
+    }
+  }
+
   public getKelasList(onlyActive = true): Kelas[] {
     if (onlyActive) {
       return this.kelasList.filter((k) => k.status === 'aktif');
