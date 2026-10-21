@@ -139,6 +139,21 @@ export default function App() {
     triggerRefresh();
   };
 
+  const handleUpdateUser = async (userId: string, userData: Partial<User>) => {
+    await dataStore.updateUser(userId, userData);
+    if (currentUser && currentUser.id === userId) {
+      const updated = { ...currentUser, ...userData };
+      setCurrentUser(updated);
+      localStorage.setItem('smpn7_session_user_v2', JSON.stringify(updated));
+    }
+    triggerRefresh();
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    await dataStore.deleteUser(userId);
+    triggerRefresh();
+  };
+
   const handleAddKelas = async (kelasData: Omit<import('./types').Kelas, 'id'>) => {
     await dataStore.addKelas(kelasData);
     triggerRefresh();
@@ -304,6 +319,8 @@ export default function App() {
               logs={logs}
               settings={settings}
               onAddUser={handleAddUser}
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
               onResetPassword={handleResetPassword}
               onToggleUserStatus={handleToggleUserStatus}
               onAddKelas={handleAddKelas}
