@@ -1,0 +1,2402 @@
+import React, { useState } from 'react';
+import { User, Kelas, Siswa, Periode, Penilaian, LogAktivitas, Pengaturan, Kategori } from '../types';
+import { DatabaseSyncView } from './DatabaseSyncView';
+import {
+  Users,
+  School,
+  Calendar,
+  FileSpreadsheet,
+  Settings,
+  Shield,
+  Plus,
+  ToggleLeft,
+  ToggleRight,
+  Download,
+  Trash2,
+  FileUp,
+  Search,
+  UserPlus,
+  AlertCircle,
+  KeyRound,
+  Image,
+  Upload,
+  RotateCcw,
+  Database,
+  Edit2,
+  Trophy,
+  Sparkles,
+  Palette,
+  CheckCircle,
+  Play,
+  Pause,
+  Power,
+  Check,
+  Camera,
+  ExternalLink,
+} from 'lucide-react';
+
+interface AdminPortalProps {
+  users: User[];
+  kelasList: Kelas[];
+  siswaList: Siswa[];
+  periodeList: Periode[];
+  kategoriList: Kategori[];
+  allEvaluations: Penilaian[];
+  logs: LogAktivitas[];
+  settings: Pengaturan;
+  onAddUser: (u: Omit<User, 'id' | 'dibuatPada'>, pass: string) => void;
+  onUpdateUser: (userId: string, u: Partial<User>) => void;
+  onDeleteUser: (userId: string) => void;
+  onResetPassword: (userId: string, newPass: string) => void;
+  onToggleUserStatus: (id: string) => void;
+  onAddKelas: (k: Omit<Kelas, 'id'>) => void;
+  onUpdateKelas: (id: string, k: Partial<Omit<Kelas, 'id'>>) => void;
+  onDeleteKelas: (id: string) => void;
+  onDeleteAllKelas: () => void;
+  onSeedSampleKelas: () => void;
+  onAddSiswa: (s: Omit<Siswa, 'id'>) => void;
+  onUpdateSiswa: (id: string, s: Partial<Siswa>) => Promise<void> | void;
+  onDeleteSiswa: (siswaId: string) => void;
+  onDeleteAllSiswa: () => void;
+  onImportSiswaCSV: (csv: string) => Promise<{ importedCount: number; errors: string[] }>;
+  onCreatePeriode: (p: Omit<Periode, 'id' | 'status'>) => void;
+  onSetActivePeriode: (id: string) => void;
+  onUpdatePeriode: (id: string, p: Partial<Omit<Periode, 'id'>>) => void;
+  onDeletePeriode: (id: string) => void;
+  onToggleKategoriStatus: (id: string) => Promise<void> | void;
+  onDeleteEvaluation: (id: string, alasan: string) => void;
+  onUpdateSettings: (s: Partial<Pengaturan>) => Promise<void> | void;
+  onExportCSV: () => void;
+}
+
+export const AdminPortal: React.FC<AdminPortalProps> = ({
+  users,
+  kelasList,
+  siswaList,
+  periodeList,
+  kategoriList,
+  allEvaluations,
+  logs,
+  settings,
+  onAddUser,
+  onUpdateUser,
+  onDeleteUser,
+  onResetPassword,
+  onToggleUserStatus,
+  onAddKelas,
+  onUpdateKelas,
+  onDeleteKelas,
+  onDeleteAllKelas,
+  onSeedSampleKelas,
+  onAddSiswa,
+  onUpdateSiswa,
+  onDeleteSiswa,
+  onDeleteAllSiswa,
+  onImportSiswaCSV,
+  onCreatePeriode,
+  onSetActivePeriode,
+  onUpdatePeriode,
+  onDeletePeriode,
+  onToggleKategoriStatus,
+  onDeleteEvaluation,
+  onUpdateSettings,
+  onExportCSV,
+}) => {
+  const [activeTab, setActiveTab] = useState<
+    'users' | 'kelas' | 'siswa' | 'periode' | 'kategori' | 'evaluations' | 'logs' | 'settings' | 'apps-script'
+  >('users');
+
+  // Kategori management state
+  const [togglingKategoriId, setTogglingKategoriId] = useState<string | null>(null);
+  const [categoryActionToast, setCategoryActionToast] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  // User Form
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newNama, setNewNama] = useState('');
+  const [newNip, setNewNip] = useState('');
+  const [newRole, setNewRole] = useState<'guru' | 'admin'>('guru');
+  const [newPass, setNewPass] = useState('guru123');
+
+  // Reset Password State
+  const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
+  const [resetNewPass, setResetNewPass] = useState('');
+
+  // Edit User State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editUserNama, setEditUserNama] = useState('');
+  const [editUserNip, setEditUserNip] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'guru' | 'admin'>('guru');
+  const [editUserStatus, setEditUserStatus] = useState<'aktif' | 'nonaktif'>('aktif');
+
+  const handleSaveEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editUserNama.trim()) {
+      alert('Nama lengkap tidak boleh kosong!');
+      return;
+    }
+    try {
+      onUpdateUser(editingUser.id, {
+        nama: editUserNama.trim(),
+        nip: editUserNip.trim(),
+        role: editUserRole,
+        status: editUserStatus,
+      });
+      alert(`Berhasil memperbarui data akun ${editingUser.username}!`);
+      setEditingUser(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal memperbarui data akun');
+    }
+  };
+
+  // Kelas Form
+  const [showAddKelasModal, setShowAddKelasModal] = useState(false);
+  const [newKelasNama, setNewKelasNama] = useState('');
+  const [newTingkat, setNewTingkat] = useState<number>(7);
+  const [newWaliKelas, setNewWaliKelas] = useState('');
+
+  // Edit Kelas State
+  const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
+  const [editKelasNama, setEditKelasNama] = useState('');
+  const [editKelasTingkat, setEditKelasTingkat] = useState<number>(7);
+  const [editKelasWali, setEditKelasWali] = useState('');
+  const [editKelasStatus, setEditKelasStatus] = useState<'aktif' | 'nonaktif'>('aktif');
+
+  // Periode Form & Edit
+  const [showAddPeriodeModal, setShowAddPeriodeModal] = useState(false);
+  const [newPeriodeNama, setNewPeriodeNama] = useState('');
+  const [newTanggalMulai, setNewTanggalMulai] = useState('');
+  const [newTanggalSelesai, setNewTanggalSelesai] = useState('');
+
+  const [editingPeriode, setEditingPeriode] = useState<Periode | null>(null);
+  const [editPeriodeNama, setEditPeriodeNama] = useState('');
+  const [editPeriodeMulai, setEditPeriodeMulai] = useState('');
+  const [editPeriodeSelesai, setEditPeriodeSelesai] = useState('');
+  const [editPeriodeStatus, setEditPeriodeStatus] = useState<'aktif' | 'arsip'>('aktif');
+
+  const handleSaveEditPeriode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPeriode) return;
+    try {
+      onUpdatePeriode(editingPeriode.id, {
+        nama: editPeriodeNama.trim(),
+        tanggalMulai: editPeriodeMulai,
+        tanggalSelesai: editPeriodeSelesai,
+        status: editPeriodeStatus,
+      });
+      setEditingPeriode(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal merubah data periode');
+    }
+  };
+
+  // Siswa Form & Photo
+  const [showAddSiswaModal, setShowAddSiswaModal] = useState(false);
+  const [showImportSiswaModal, setShowImportSiswaModal] = useState(false);
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
+  const [newSiswaNama, setNewSiswaNama] = useState('');
+  const [newSiswaNisn, setNewSiswaNisn] = useState('');
+  const [newSiswaKelasId, setNewSiswaKelasId] = useState<string>(kelasList[0]?.id || '7a');
+  const [newSiswaFotoUrl, setNewSiswaFotoUrl] = useState('');
+  const [editingSiswaPhoto, setEditingSiswaPhoto] = useState<Siswa | null>(null);
+  const [photoModalUrl, setPhotoModalUrl] = useState('');
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
+  const [isSavingSiswaPhoto, setIsSavingSiswaPhoto] = useState(false);
+  const [csvText, setCsvText] = useState('');
+
+  // Evaluation Delete Modal
+  const [deletingItem, setDeletingItem] = useState<Penilaian | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
+  // Settings Form & Logo Upload
+  const [settingsForm, setSettingsForm] = useState<Pengaturan>(settings);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isCompressingLogo, setIsCompressingLogo] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  React.useEffect(() => {
+    setSettingsForm(settings);
+  }, [settings]);
+
+  const handleCreateUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      onAddUser({ username: newUsername.trim(), nama: newNama.trim(), nip: newNip.trim(), role: newRole, status: 'aktif' }, newPass);
+      setShowAddUserModal(false);
+      setNewUsername(''); setNewNama(''); setNewNip('');
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
+  };
+
+  const handleConfirmResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTargetUser || !resetNewPass.trim()) return;
+    try {
+      onResetPassword(resetTargetUser.id, resetNewPass.trim());
+      alert(`Berhasil mereset password untuk ${resetTargetUser.nama} (${resetTargetUser.username})!`);
+      setResetTargetUser(null);
+      setResetNewPass('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal mereset password');
+    }
+  };
+
+  const handleCreateKelas = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      onAddKelas({ nama: newKelasNama.trim().toUpperCase(), tingkat: Number(newTingkat), waliKelas: newWaliKelas.trim(), status: 'aktif' });
+      setShowAddKelasModal(false);
+      setNewKelasNama(''); setNewWaliKelas('');
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
+  };
+
+  const handleSaveEditKelas = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingKelas || !editKelasNama.trim()) return;
+    try {
+      onUpdateKelas(editingKelas.id, {
+        nama: editKelasNama.trim().toUpperCase(),
+        tingkat: Number(editKelasTingkat),
+        waliKelas: editKelasWali.trim(),
+        status: editKelasStatus,
+      });
+      setEditingKelas(null);
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal mengubah data kelas'); }
+  };
+
+  const handleCreateSiswa = (e: React.FormEvent) => {
+    e.preventDefault();
+    const kObj = kelasList.find((k) => k.id === newSiswaKelasId);
+    if (!kObj) return;
+    try {
+      onAddSiswa({
+        nama: newSiswaNama.trim(),
+        nisn: newSiswaNisn.trim() || `008${Math.floor(10000000 + Math.random() * 90000000)}`,
+        kelasId: kObj.id,
+        kelasNama: kObj.nama,
+        ...(newSiswaFotoUrl.trim() ? { fotoUrl: newSiswaFotoUrl.trim() } : {}),
+      });
+      setShowAddSiswaModal(false);
+      setNewSiswaNama('');
+      setNewSiswaNisn('');
+      setNewSiswaFotoUrl('');
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
+  };
+
+  const compressStudentPhoto = (file: File, callback: (base64: string) => void) => {
+    if (!file.type.startsWith('image/')) {
+      alert('File harus berupa gambar (JPG, PNG, WebP)!');
+      return;
+    }
+    setIsCompressingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const raw = e.target?.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 400;
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            callback(canvas.toDataURL('image/jpeg', 0.85));
+          } else {
+            callback(raw);
+          }
+        } catch {
+          callback(raw);
+        } finally {
+          setIsCompressingPhoto(false);
+        }
+      };
+      img.onerror = () => {
+        setIsCompressingPhoto(false);
+        alert('Gagal memuat file gambar siswa.');
+      };
+      img.src = raw;
+    };
+    reader.onerror = () => {
+      setIsCompressingPhoto(false);
+      alert('Gagal membaca file gambar.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveStudentPhoto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSiswaPhoto) return;
+    setIsSavingSiswaPhoto(true);
+    try {
+      await onUpdateSiswa(editingSiswaPhoto.id, {
+        fotoUrl: photoModalUrl.trim(),
+      });
+      setEditingSiswaPhoto(null);
+      setPhotoModalUrl('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menyimpan foto siswa');
+    } finally {
+      setIsSavingSiswaPhoto(false);
+    }
+  };
+
+  const handleImportCSV = async () => {
+    if (!csvText.trim()) {
+      alert('Masukkan teks CSV data siswa terlebih dahulu!');
+      return;
+    }
+    const res = await onImportSiswaCSV(csvText);
+    alert(`Berhasil mengimpor ${res.importedCount} data siswa!`);
+    setShowImportSiswaModal(false);
+    setCsvText('');
+  };
+
+  const handleDownloadStudentTemplate = () => {
+    const template = 'No,Nama,Kelas,NISN\n1,Aditya Pratama,7A,0081234567\n2,Budi Raharjo,7A,0087654321\n3,Citra Dewi,7B,0089988776\n';
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Template_Data_Siswa_SMPN7.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCreatePeriode = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      onCreatePeriode({ nama: newPeriodeNama.trim(), tanggalMulai: newTanggalMulai, tanggalSelesai: newTanggalSelesai });
+      setShowAddPeriodeModal(false);
+      setNewPeriodeNama('');
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Gagal'); }
+  };
+
+  const ConfirmDeleteEvaluation = () => {
+    if (!deletingItem || !deleteReason.trim()) {
+      alert('Wajib mengisi alasan pembatalan!'); return;
+    }
+    onDeleteEvaluation(deletingItem.id, deleteReason);
+    setDeletingItem(null); setDeleteReason('');
+  };
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('File yang dipilih harus berupa gambar (PNG, JPG, SVG, WebP)!');
+      return;
+    }
+
+    setIsCompressingLogo(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const rawResult = event.target?.result as string;
+
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 360;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/png');
+            setSettingsForm((prev) => ({ ...prev, logoUrl: compressedBase64 }));
+          } else {
+            setSettingsForm((prev) => ({ ...prev, logoUrl: rawResult }));
+          }
+        } catch (err) {
+          setSettingsForm((prev) => ({ ...prev, logoUrl: rawResult }));
+        } finally {
+          setIsCompressingLogo(false);
+        }
+      };
+      img.onerror = () => {
+        setIsCompressingLogo(false);
+        alert('Gagal memuat gambar logo.');
+      };
+      img.src = rawResult;
+    };
+    reader.onerror = () => {
+      setIsCompressingLogo(false);
+      alert('Gagal membaca file logo.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      await onUpdateSettings(settingsForm);
+      alert('Pengaturan sekolah, alamat, dan logo berhasil disimpan secara permanen!');
+    } catch (err: unknown) {
+      console.error('Failed to save settings:', err);
+      alert('Gagal menyimpan pengaturan: ' + (err instanceof Error ? err.message : 'Terjadi kesalahan sistem'));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const filteredSiswa = siswaList.filter(
+    (s) =>
+      (selectedClassFilter === 'all' || s.kelasId === selectedClassFilter) &&
+      (s.nama.toLowerCase().includes(searchQuery.toLowerCase()) || s.nisn.includes(searchQuery))
+  );
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 pb-12">
+      {/* SIDEBAR ADMIN NAVIGATION - HydroFest Style */}
+      <aside className="w-full lg:w-64 shrink-0 space-y-4">
+        {/* Admin Card */}
+        <div className="bg-gradient-to-br from-sky-600 via-blue-700 to-indigo-900 text-white rounded-3xl p-5 border border-sky-400/20 shadow-lg shadow-sky-950/5 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-base border border-white/30 backdrop-blur-md">
+              <Shield className="w-5 h-5 text-cyan-200" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-sm text-white">Panel Administrator</h2>
+              <span className="text-[10px] text-cyan-200 font-extrabold bg-white/10 border border-white/20 px-2.5 py-0.5 rounded-full inline-block mt-0.5">
+                Full Privileges
+              </span>
+            </div>
+          </div>
+
+          <div className="text-xs text-sky-100 pt-3 border-t border-white/15 space-y-2">
+            <p className="text-[11px] text-sky-200 font-semibold">{settings.namaSekolah}</p>
+            <button
+              onClick={onExportCSV}
+              className="w-full bg-white/15 hover:bg-white/25 text-white border border-white/25 px-3 py-2 rounded-full font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Unduh CSV / Excel</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sidebar Menu Items */}
+        <div className="bg-white rounded-3xl border border-sky-100 shadow-sm p-3 space-y-1">
+          <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 py-1.5 tracking-wider">
+            Pengelolaan Data
+          </p>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'users' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Users className={`w-4 h-4 ${activeTab === 'users' ? 'text-white' : 'text-sky-600'}`} />
+              <span>Kelola Akun Juri</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {users.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('siswa')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'siswa' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <UserPlus className={`w-4 h-4 ${activeTab === 'siswa' ? 'text-white' : 'text-teal-600'}`} />
+              <span>Kelola Data Siswa</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'siswa' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {siswaList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('kelas')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'kelas' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <School className={`w-4 h-4 ${activeTab === 'kelas' ? 'text-white' : 'text-blue-600'}`} />
+              <span>Kelola Kelas</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'kelas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {kelasList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('periode')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'periode' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Calendar className={`w-4 h-4 ${activeTab === 'periode' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>Periode Penilaian</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'periode' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {periodeList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('kategori')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'kategori'
+                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20'
+                : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Trophy className={`w-4 h-4 ${activeTab === 'kategori' ? 'text-white' : 'text-amber-500'}`} />
+              <span>Kelola Kategori Lomba</span>
+            </div>
+            <span
+              className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
+                activeTab === 'kategori'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              {kategoriList.filter((k) => k.status === 'aktif').length} Aktif
+            </span>
+          </button>
+
+          <p className="text-[10px] uppercase font-extrabold text-slate-400 px-3 pt-3 pb-1 tracking-wider">
+            Sistem & Laporan
+          </p>
+
+          <button
+            onClick={() => setActiveTab('evaluations')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'evaluations' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileSpreadsheet className={`w-4 h-4 ${activeTab === 'evaluations' ? 'text-white' : 'text-cyan-600'}`} />
+              <span>Semua Penilaian</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'evaluations' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {allEvaluations.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'logs' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Shield className={`w-4 h-4 ${activeTab === 'logs' ? 'text-white' : 'text-rose-600'}`} />
+              <span>Audit Log</span>
+            </div>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>
+              {logs.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'settings' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20' : 'text-slate-700 hover:bg-sky-50/70'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className={`w-4 h-4 ${activeTab === 'settings' ? 'text-white' : 'text-slate-500'}`} />
+              <span>Pengaturan & Logo</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('apps-script')}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between ${
+              activeTab === 'apps-script'
+                ? 'bg-emerald-600 text-white shadow-md font-extrabold'
+                : 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Database className="w-4 h-4 text-emerald-600" />
+              <span>Status DB Sync</span>
+            </div>
+            <span className="text-[10px] bg-emerald-200 text-emerald-900 font-extrabold px-1.5 py-0.5 rounded">
+              Live
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 min-w-0 space-y-6">
+        {/* Banner Header */}
+        <div className="bg-gradient-to-br from-sky-600 via-blue-700 to-indigo-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-sky-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20 mb-2">
+              <Shield className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Panel Administrator Utama</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              Pengelolaan Akun Juri, Data Siswa & Pengaturan Logo
+            </h1>
+            <p className="text-xs text-sky-100 mt-1">
+              SMP Negeri 7 Muara Badak — Kelola Akun Juri, Data Siswa, Kelas, dan Logo Sekolah Secara Realtime.
+            </p>
+          </div>
+        </div>
+
+      {/* TAB 1: USERS & RESET PASSWORD */}
+      {activeTab === 'users' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Manajemen Akun Juri & Administrator</h2>
+              <p className="text-xs text-slate-500">Buat akun juri penilai baru dan reset kata sandi sesuai kebutuhan.</p>
+            </div>
+            <button
+              onClick={() => setShowAddUserModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Akun Juri Baru</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
+                  <th className="py-3 px-4">Username</th>
+                  <th className="py-3 px-4">Nama Lengkap Juri/Guru</th>
+                  <th className="py-3 px-4">NIP</th>
+                  <th className="py-3 px-4">Hak Akses</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Aksi / Reset Password</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-4 font-bold text-slate-900">{u.username}</td>
+                    <td className="py-3 px-4 text-slate-800">{u.nama}</td>
+                    <td className="py-3 px-4 text-slate-500 text-xs">{u.nip || '-'}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                          u.role === 'admin'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                          u.status === 'aktif'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {u.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingUser(u);
+                            setEditUserNama(u.nama);
+                            setEditUserNip(u.nip || '');
+                            setEditUserRole(u.role);
+                            setEditUserStatus(u.status);
+                          }}
+                          className="text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Edit Akun & NIP"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetTargetUser(u);
+                            setResetNewPass('');
+                          }}
+                          className="text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Reset Password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Reset</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onToggleUserStatus(u.id)}
+                          className="p-1 text-slate-600 hover:text-slate-900 inline-flex items-center"
+                          title="Ganti Status Aktif/Nonaktif"
+                        >
+                          {u.status === 'aktif' ? (
+                            <ToggleRight className="w-5 h-5 text-emerald-600" />
+                          ) : (
+                            <ToggleLeft className="w-5 h-5 text-slate-400" />
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Apakah Anda yakin ingin MENGHAPUS akun "${u.nama}" (${u.username})?`)) {
+                              onDeleteUser(u.id);
+                            }
+                          }}
+                          className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                          title="Hapus Akun Ini"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* TAB 2: SISWA MANAGEMENT */}
+      {activeTab === 'siswa' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Manajemen Data Siswa per Kelas</h2>
+              <p className="text-xs text-slate-500">
+                Data siswa ini digunakan langsung oleh Juri/Guru saat melakukan penilaian Kelas Disiplin.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleDownloadStudentTemplate}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-slate-300"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Template CSV</span>
+              </button>
+
+              <button
+                onClick={() => setShowImportSiswaModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow transition-colors flex items-center gap-1.5"
+              >
+                <FileUp className="w-3.5 h-3.5" />
+                <span>Import CSV Sekaligus</span>
+              </button>
+
+              <button
+                onClick={() => setShowAddSiswaModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Siswa</span>
+              </button>
+
+              {siswaList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Apakah Anda yakin ingin MENGHAPUS SELURUH DATA SISWA? Tindakan ini tidak dapat dibatalkan!')) {
+                      onDeleteAllSiswa();
+                      alert('Seluruh data siswa berhasil dihapus.');
+                    }
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Hapus Semua Siswa ({siswaList.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-slate-700">Filter Kelas:</span>
+              <select
+                value={selectedClassFilter}
+                onChange={(e) => setSelectedClassFilter(e.target.value)}
+                className="border border-slate-300 rounded-lg px-2.5 py-1 bg-white font-semibold text-slate-900"
+              >
+                <option value="all">Semua Kelas ({siswaList.length} Siswa)</option>
+                {kelasList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    Kelas {k.nama} ({siswaList.filter((s) => s.kelasId === k.id).length} Siswa)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+              <input
+                type="text"
+                placeholder="Cari nama / NISN..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1 border border-slate-300 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+          </div>
+
+          {filteredSiswa.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
+                    <th className="py-3 px-4 text-center w-12">No</th>
+                    <th className="py-3 px-3 text-center w-16">Foto</th>
+                    <th className="py-3 px-4">Nama Siswa</th>
+                    <th className="py-3 px-4">Kelas</th>
+                    <th className="py-3 px-4 font-mono">NISN</th>
+                    <th className="py-3 px-4 text-center w-32">Kelola Foto</th>
+                    <th className="py-3 px-4 text-center w-20">Hapus</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredSiswa.map((s, idx) => (
+                    <tr key={s.id} className="hover:bg-sky-50/40 transition-colors">
+                      <td className="py-3 px-4 text-center text-slate-500 text-xs font-mono">{idx + 1}</td>
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSiswaPhoto(s);
+                            setPhotoModalUrl(s.fotoUrl || '');
+                          }}
+                          className="relative group inline-block focus:outline-none"
+                          title="Klik untuk ubah foto siswa"
+                        >
+                          {s.fotoUrl ? (
+                            <img
+                              src={s.fotoUrl}
+                              alt={s.nama}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-sky-300 shadow-xs group-hover:ring-2 group-hover:ring-sky-500 transition-all"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-100 to-blue-200 text-sky-800 font-extrabold flex items-center justify-center text-xs border border-sky-300 shadow-xs group-hover:scale-105 transition-all">
+                              {s.nama.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-slate-900/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <Camera className="w-3.5 h-3.5 text-white" />
+                          </div>
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <span>{s.nama}</span>
+                          {s.fotoUrl && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                              Ada Foto
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="bg-sky-50 text-sky-800 border border-sky-200 px-2.5 py-0.5 rounded-full font-bold text-xs">
+                          Kelas {s.kelasNama}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 font-mono text-xs">{s.nisn}</td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSiswaPhoto(s);
+                            setPhotoModalUrl(s.fotoUrl || '');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition-all shadow-2xs active:scale-95"
+                          title="Unggah atau ubah link foto siswa"
+                        >
+                          <Camera className="w-3.5 h-3.5 text-sky-600" />
+                          <span>{s.fotoUrl ? 'Ubah Foto' : '+ Pasang Foto'}</span>
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Hapus data siswa "${s.nama}"?`)) {
+                              onDeleteSiswa(s.id);
+                            }
+                          }}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Hapus Siswa Ini"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-2">
+              <UserPlus className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-800 text-sm">Belum Ada Data Siswa</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Silakan klik tombol <strong>"Tambah Siswa"</strong> atau <strong>"Import CSV Sekaligus"</strong> di atas untuk memasukkan data siswa kelas Anda.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* TAB 3: KELAS */}
+      {activeTab === 'kelas' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Manajemen Daftar Kelas</h2>
+              <p className="text-xs text-slate-500">
+                Tambah, ubah nama/wali kelas, atau hapus kelas yang berpartisipasi dalam penilaian.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Isi ulang contoh daftar kelas standar sekolah (7A s.d. 9B)?')) {
+                    onSeedSampleKelas();
+                  }
+                }}
+                className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                <span>Reset Contoh Kelas (7A-9B)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAddKelasModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Kelas Baru</span>
+              </button>
+
+              {kelasList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Apakah Anda yakin ingin MENGHAPUS SELURUH DAFTAR KELAS? Tindakan ini tidak dapat dibatalkan!')) {
+                      onDeleteAllKelas();
+                    }
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Hapus Semua Kelas ({kelasList.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {kelasList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {kelasList.map((k) => (
+                <div key={k.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3 relative group hover:border-slate-300 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-lg">Kelas {k.nama}</span>
+                    <span className="text-xs bg-white border font-semibold px-2 py-0.5 rounded text-slate-700 shadow-2xs">
+                      Tingkat {k.tingkat}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600">
+                    <strong>Wali Kelas:</strong> {k.waliKelas || '-'}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                    <span className="text-blue-700 font-bold">
+                      {siswaList.filter((s) => s.kelasId === k.id).length} Siswa
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingKelas(k);
+                          setEditKelasNama(k.nama);
+                          setEditKelasTingkat(k.tingkat);
+                          setEditKelasWali(k.waliKelas || '');
+                          setEditKelasStatus(k.status || 'aktif');
+                        }}
+                        className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Edit Data Kelas"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus "Kelas ${k.nama}"?`)) {
+                            onDeleteKelas(k.id);
+                          }
+                        }}
+                        className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
+                        title="Hapus Kelas Ini"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-2">
+              <School className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-800 text-sm">Belum Ada Data Kelas</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Silakan klik tombol <strong>"Tambah Kelas Baru"</strong> atau <strong>"Reset Contoh Kelas"</strong> di atas untuk membuat kelas sekolah Anda.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* TAB 4: PERIODE */}
+      {activeTab === 'periode' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Manajemen Periode Mingguan</h2>
+              <p className="text-xs text-slate-500">Atur rentang tanggal minggu aktif dan lihat arsip penilaian.</p>
+            </div>
+            <button
+              onClick={() => setShowAddPeriodeModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Buat Periode Baru</span>
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {periodeList.map((p) => {
+              const isActive = p.status === 'aktif';
+              return (
+                <div
+                  key={p.id}
+                  className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    isActive ? 'bg-blue-50/70 border-blue-300' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-base">{p.nama}</span>
+                      {isActive && (
+                        <span className="text-[10px] font-bold text-blue-800 bg-blue-100 border border-blue-300 px-2 py-0.5 rounded-full uppercase">
+                          Periode Aktif Saat Ini
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      Rentang Tanggal: {p.tanggalMulai} s.d. {p.tanggalSelesai}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {!isActive && (
+                      <button
+                        type="button"
+                        onClick={() => onSetActivePeriode(p.id)}
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-bold shadow-2xs"
+                      >
+                        Aktifkan Minggu Ini
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPeriode(p);
+                        setEditPeriodeNama(p.nama);
+                        setEditPeriodeMulai(p.tanggalMulai);
+                        setEditPeriodeSelesai(p.tanggalSelesai);
+                        setEditPeriodeStatus(p.status);
+                      }}
+                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 bg-white"
+                      title="Edit Judul & Tanggal Periode"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Hapus "Periode ${p.nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+                          onDeletePeriode(p.id);
+                        }
+                      }}
+                      className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 bg-white"
+                      title="Hapus Periode Ini"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 4B: KELOLA KATEGORI LOMBA */}
+      {activeTab === 'kategori' && (
+        <section className="bg-white rounded-3xl border border-sky-100 shadow-sm p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Trophy className="w-4 h-4" />
+                </div>
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                  Kelola Kategori Perlombaan Antar Kelas
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Atur kategori lomba yang sedang berjalan atau ditutup sementara. Klik tombol untuk membuka/menutup akses penilaian juri dan papan skor publik.
+              </p>
+            </div>
+
+            {/* Quick Metrics Badges */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="px-3 py-1.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {kategoriList.filter((k) => k.status === 'aktif').length} Lomba Aktif
+              </span>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                {kategoriList.filter((k) => k.status === 'coming_soon').length} Coming Soon
+              </span>
+            </div>
+          </div>
+
+          {/* Toast Notification */}
+          {categoryActionToast && (
+            <div
+              className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between gap-3 ${
+                categoryActionToast.type === 'success'
+                  ? 'bg-emerald-50 border border-emerald-300 text-emerald-900 shadow-xs'
+                  : 'bg-rose-50 border border-rose-300 text-rose-900 shadow-xs'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {categoryActionToast.type === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{categoryActionToast.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCategoryActionToast(null)}
+                className="p-1 hover:bg-black/5 rounded-lg text-slate-500 font-black text-sm"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Guide Banner */}
+          <div className="bg-gradient-to-r from-sky-50 via-cyan-50 to-blue-50 border border-sky-200/80 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Play className="w-4 h-4 fill-white" />
+            </div>
+            <div className="space-y-1 text-xs text-slate-700">
+              <h4 className="font-extrabold text-sky-950 text-sm">
+                Kontrol Status Lomba Realtime
+              </h4>
+              <p className="leading-relaxed text-slate-600">
+                Anda dapat <strong>mengaktifkan</strong> kategori saat lomba dimulai, atau <strong>menutup sementara</strong> (menjadi status <em>Coming Soon</em>) jika lomba ingin dijeda/dihentikan. Perubahan status ini langsung berlaku secara realtime pada Dashboard Publik dan Portal Juri.
+              </p>
+            </div>
+          </div>
+
+          {/* Category Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {kategoriList.map((kat) => {
+              const isActive = kat.status === 'aktif';
+              const isToggling = togglingKategoriId === kat.id;
+              const catEvaluations = allEvaluations.filter((e) => e.kategoriId === kat.id);
+              const totalNilai = catEvaluations.reduce((sum, e) => sum + e.nilai, 0);
+              const rataRata = catEvaluations.length > 0 ? (totalNilai / catEvaluations.length).toFixed(1) : '-';
+
+              // Determine icon
+              let CatIcon = Trophy;
+              if (kat.id === 'terbersih') CatIcon = Sparkles;
+              else if (kat.id === 'kreatif') CatIcon = Palette;
+              else if (kat.id === 'taat_aturan') CatIcon = CheckCircle;
+              else if (kat.id === 'disiplin') CatIcon = Shield;
+
+              const handleToggle = async () => {
+                setTogglingKategoriId(kat.id);
+                try {
+                  await onToggleKategoriStatus(kat.id);
+                  setCategoryActionToast({
+                    type: 'success',
+                    message: isActive
+                      ? `Kategori "${kat.nama}" berhasil ditutup sementara (status sekarang: Coming Soon).`
+                      : `Kategori "${kat.nama}" berhasil diaktifkan! Dewan juri kini dapat menginput nilai.`,
+                  });
+                } catch (err: unknown) {
+                  setCategoryActionToast({
+                    type: 'error',
+                    message: err instanceof Error ? err.message : 'Gagal memperbarui status kategori.',
+                  });
+                } finally {
+                  setTogglingKategoriId(null);
+                }
+              };
+
+              return (
+                <div
+                  key={kat.id}
+                  className={`rounded-3xl border transition-all p-5 sm:p-6 flex flex-col justify-between space-y-5 ${
+                    isActive
+                      ? 'bg-gradient-to-b from-white to-sky-50/40 border-sky-200 shadow-md shadow-sky-500/5 ring-1 ring-sky-300/40'
+                      : 'bg-white border-slate-200 shadow-2xs hover:border-slate-300 opacity-95'
+                  }`}
+                >
+                  <div className="space-y-4">
+                    {/* Top Row: Icon + Badge & Interactive Switch */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold shadow-xs ${
+                            isActive
+                              ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          <CatIcon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                            {kat.nama}
+                          </h3>
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            ID: {kat.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Status Indicator Button (Interactive Toggle) */}
+                      <button
+                        type="button"
+                        disabled={isToggling}
+                        onClick={handleToggle}
+                        title={isActive ? 'Klik untuk menutup kategori (Set ke Coming Soon)' : 'Klik untuk mengaktifkan kategori'}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase transition-all active:scale-95 cursor-pointer disabled:opacity-50 ${
+                          isActive
+                            ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                          }`}
+                        />
+                        <span>{isActive ? 'Aktif' : 'Coming Soon'}</span>
+                      </button>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-slate-600 leading-relaxed min-h-[36px]">
+                      {kat.deskripsi}
+                    </p>
+
+                    {/* Quick Stats Pill */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                          Penilaian Masuk
+                        </span>
+                        <span className="text-base font-extrabold text-slate-900 mt-0.5 block">
+                          {catEvaluations.length} Data
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                          Rata-rata Skor
+                        </span>
+                        <span className="text-base font-extrabold text-slate-900 mt-0.5 block">
+                          {rataRata} {rataRata !== '-' ? '/ 100' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Action Button */}
+                  <div className="pt-3 border-t border-slate-100">
+                    {!isActive ? (
+                      <button
+                        type="button"
+                        disabled={isToggling}
+                        onClick={handleToggle}
+                        className="w-full py-3 px-4 rounded-2xl font-black text-xs text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                      >
+                        <Play className="w-4 h-4 fill-white" />
+                        <span>{isToggling ? 'Mengaktifkan...' : 'Aktifkan Kategori (Mulai Lomba)'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isToggling}
+                        onClick={handleToggle}
+                        className="w-full py-3 px-4 rounded-2xl font-black text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 hover:text-rose-800 border border-rose-200 hover:border-rose-300 shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                      >
+                        <Pause className="w-4 h-4 text-rose-600 fill-rose-600" />
+                        <span>{isToggling ? 'Menutup Kategori...' : 'Tutup Kategori (Set ke Coming Soon)'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 5: EVALUATIONS */}
+      {activeTab === 'evaluations' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Seluruh Data Penilaian Masuk</h2>
+              <p className="text-xs text-slate-500">Administrator dapat membatalkan entri penilaian dengan alasan resmi.</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
+                  <th className="py-3 px-4">Tanggal</th>
+                  <th className="py-3 px-4">Kelas</th>
+                  <th className="py-3 px-4">Kategori</th>
+                  <th className="py-3 px-4 text-center">Nilai Total</th>
+                  <th className="py-3 px-4">Juri Penilai</th>
+                  <th className="py-3 px-4 text-center">Aksi Batal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {allEvaluations.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-4 text-xs text-slate-600 font-mono">{item.tanggal}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900">Kelas {item.kelasNama}</td>
+                    <td className="py-3 px-4 text-xs text-slate-700">{item.kategoriNama}</td>
+                    <td className="py-3 px-4 text-center font-black text-blue-700 tabular-nums">{item.nilai}</td>
+                    <td className="py-3 px-4 text-xs text-slate-800">{item.guruNama}</td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => setDeletingItem(item)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* TAB 6: LOGS */}
+      {activeTab === 'logs' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="border-b pb-3">
+            <h2 className="text-lg font-bold text-slate-900">Catatan Audit Aktivitas Sistem</h2>
+          </div>
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {logs.map((log) => (
+              <div key={log.id} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                <div className="flex justify-between text-slate-500">
+                  <span className="font-bold text-slate-800">{log.nama} ({log.username})</span>
+                  <span>{new Date(log.waktu).toLocaleString('id-ID')}</span>
+                </div>
+                <p><strong>{log.aksi}:</strong> {log.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 7: SETTINGS & LOGO UPLOAD */}
+      {activeTab === 'settings' && (
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="border-b pb-3">
+            <h2 className="text-lg font-bold text-slate-900">Pengaturan Identitas & Logo Sekolah</h2>
+            <p className="text-xs text-slate-500">Ubah nama sekolah, alamat, dan unggah logo sekolah resmi.</p>
+          </div>
+
+          <form onSubmit={handleSaveSettings} className="space-y-6 max-w-2xl">
+            {/* SCHOOL LOGO CUSTOMIZATION */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+              <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
+                <Image className="w-4 h-4 text-blue-600" />
+                <span>Logo Resmi Sekolah</span>
+              </label>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-20 h-20 bg-white rounded-2xl border border-slate-300 p-2 flex items-center justify-center shrink-0 shadow-inner">
+                  {settingsForm.logoUrl ? (
+                    <img src={settingsForm.logoUrl} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-bold text-center">Logo Default</span>
+                  )}
+                </div>
+
+                <div className="space-y-2 text-xs w-full">
+                  <div className="flex items-center gap-2">
+                    <label className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl cursor-pointer shadow-sm transition-colors flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Unggah Gambar Logo</span>
+                      <input type="file" accept="image/*" onChange={handleLogoFileUpload} className="hidden" />
+                    </label>
+
+                    {settingsForm.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, logoUrl: '' })}
+                        className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-semibold px-3 py-2 rounded-xl transition-colors flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> Reset Default
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-slate-500">
+                    Format: PNG, JPG, atau SVG (Maks. 2MB). Logo ini akan ditampilkan di header & beranda.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah</label>
+              <input
+                type="text"
+                required
+                value={settingsForm.namaSekolah}
+                onChange={(e) => setSettingsForm({ ...settingsForm, namaSekolah: e.target.value })}
+                className="w-full text-sm border border-slate-300 rounded-xl p-2.5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Judul Dashboard</label>
+              <input
+                type="text"
+                required
+                value={settingsForm.judulDashboard}
+                onChange={(e) => setSettingsForm({ ...settingsForm, judulDashboard: e.target.value })}
+                className="w-full text-sm border border-slate-300 rounded-xl p-2.5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Subjudul Dashboard</label>
+              <textarea
+                rows={2}
+                value={settingsForm.subjudulDashboard}
+                onChange={(e) => setSettingsForm({ ...settingsForm, subjudulDashboard: e.target.value })}
+                className="w-full text-sm border border-slate-300 rounded-xl p-2.5"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Alamat Sekolah</label>
+              <input
+                type="text"
+                value={settingsForm.alamatSekolah}
+                onChange={(e) => setSettingsForm({ ...settingsForm, alamatSekolah: e.target.value })}
+                className="w-full text-sm border border-slate-300 rounded-xl p-2.5"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSavingSettings || isCompressingLogo}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2"
+            >
+              {isSavingSettings ? (
+                <span>Menyimpan ke Database Online...</span>
+              ) : isCompressingLogo ? (
+                <span>Memproses Gambar Logo...</span>
+              ) : (
+                <span>Simpan Pengaturan & Logo</span>
+              )}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* TAB 8: DATABASE ONLINE REALTIME SYNC STATUS */}
+      {activeTab === 'apps-script' && (
+        <section className="space-y-4">
+          <DatabaseSyncView
+            usersCount={users.length}
+            kelasListCount={kelasList.length}
+            siswaListCount={siswaList.length}
+            penilaianListCount={allEvaluations.length}
+            lastUpdated={new Date().toLocaleTimeString('id-ID')}
+          />
+        </section>
+      )}
+      </main>
+
+      {/* MODAL: RESET PASSWORD */}
+      {resetTargetUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-amber-600" />
+              <span>Reset Password Akun</span>
+            </h3>
+            <p className="text-xs text-slate-600">
+              Ubah kata sandi baru untuk <strong>{resetTargetUser.nama}</strong> (Username: <code>{resetTargetUser.username}</code>).
+            </p>
+            <form onSubmit={handleConfirmResetPassword} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Kata Sandi Baru</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Masukkan password baru..."
+                  value={resetNewPass}
+                  onChange={(e) => setResetNewPass(e.target.value)}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setResetTargetUser(null)}
+                  className="px-3 py-1.5 text-slate-600 font-semibold"
+                >
+                  Batal
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-sm">
+                  Simpan Password Baru
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD SISWA */}
+      {showAddSiswaModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-sky-100">
+            <div className="border-b pb-3">
+              <h3 className="text-base font-extrabold text-slate-900">Tambah Data Siswa Baru</h3>
+              <p className="text-xs text-slate-500">Masukkan identitas siswa dan foto (opsional) untuk ditampilkan di beranda.</p>
+            </div>
+            <form onSubmit={handleCreateSiswa} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Nama Siswa</label>
+                <input
+                  type="text"
+                  required
+                  value={newSiswaNama}
+                  onChange={(e) => setNewSiswaNama(e.target.value)}
+                  placeholder="Misal: Ahmad Zaky"
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Pilih Kelas</label>
+                <select
+                  value={newSiswaKelasId}
+                  onChange={(e) => setNewSiswaKelasId(e.target.value)}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  {kelasList.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      Kelas {k.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">NISN</label>
+                <input
+                  type="text"
+                  value={newSiswaNisn}
+                  onChange={(e) => setNewSiswaNisn(e.target.value)}
+                  placeholder="0081234567..."
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* FOTO SISWA */}
+              <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-2">
+                <label className="block font-bold text-sky-900 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Foto Siswa (Untuk Ranking & Podium)</span>
+                  </span>
+                  {newSiswaFotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setNewSiswaFotoUrl('')}
+                      className="text-[10px] text-rose-600 hover:underline font-bold"
+                    >
+                      Hapus Foto
+                    </button>
+                  )}
+                </label>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-sky-200 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                    {newSiswaFotoUrl ? (
+                      <img src={newSiswaFotoUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-sky-300" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <label className="inline-flex items-center gap-1.5 bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 px-3 py-1.5 rounded-xl font-bold cursor-pointer text-[11px] shadow-2xs">
+                      <Upload className="w-3 h-3 text-sky-600" />
+                      <span>{isCompressingPhoto ? 'Memproses...' : 'Pilih File Foto'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isCompressingPhoto}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            compressStudentPhoto(file, (base64) => setNewSiswaFotoUrl(base64));
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    <input
+                      type="url"
+                      value={newSiswaFotoUrl}
+                      onChange={(e) => setNewSiswaFotoUrl(e.target.value)}
+                      placeholder="Atau tempel link URL foto..."
+                      className="w-full border border-slate-200 bg-white p-1.5 rounded-lg text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddSiswaModal(false);
+                    setNewSiswaFotoUrl('');
+                  }}
+                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCompressingPhoto}
+                  className="px-5 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-extrabold rounded-xl shadow-md shadow-sky-500/20 hover:from-sky-600 hover:to-blue-700 active:scale-95 transition-all"
+                >
+                  Simpan Siswa
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT / UNGGAH FOTO SISWA */}
+      {editingSiswaPhoto && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-sky-100">
+            <div className="border-b pb-3 flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-sky-600" />
+                  <span>Kelola Foto Siswa</span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  <strong>{editingSiswaPhoto.nama}</strong> · Kelas {editingSiswaPhoto.kelasNama}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSiswaPhoto(null)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStudentPhoto} className="space-y-4 text-xs">
+              <div className="flex flex-col items-center justify-center p-4 bg-sky-50/50 rounded-2xl border border-sky-100 space-y-3">
+                <div className="relative">
+                  {photoModalUrl ? (
+                    <img
+                      src={photoModalUrl}
+                      alt={editingSiswaPhoto.nama}
+                      className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-lg ring-2 ring-sky-300"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-sky-100 to-blue-200 text-sky-800 font-black text-2xl flex items-center justify-center border-4 border-white shadow-lg ring-2 ring-sky-300">
+                      {editingSiswaPhoto.nama.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+
+                  {photoModalUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoModalUrl('')}
+                      className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700"
+                      title="Hapus foto saat ini"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500 text-center">
+                  Foto ini akan tampil di podium juara Top 3 dan kartu ranking Siswa Terbaik di Beranda Publik.
+                </p>
+              </div>
+
+              {/* OPSI 1: UPLOAD FILE */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-slate-700">Opsi 1: Upload File Foto dari Perangkat</label>
+                <label className="w-full flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold border border-sky-300 py-2.5 px-4 rounded-xl cursor-pointer transition-colors shadow-2xs">
+                  <Upload className="w-4 h-4 text-sky-600" />
+                  <span>{isCompressingPhoto ? 'Mengompres Foto...' : 'Pilih File Gambar (JPG / PNG)'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isCompressingPhoto}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        compressStudentPhoto(file, (base64) => setPhotoModalUrl(base64));
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* OPSI 2: LINK URL */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-slate-700">Opsi 2: Atau Tempelkan Link URL Foto</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={photoModalUrl}
+                    onChange={(e) => setPhotoModalUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/... atau link foto online"
+                    className="flex-1 border border-slate-300 p-2.5 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingSiswaPhoto(null)}
+                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSiswaPhoto || isCompressingPhoto}
+                  className="px-5 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-extrabold rounded-xl shadow-md shadow-sky-500/20 hover:from-sky-600 hover:to-blue-700 active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  {isSavingSiswaPhoto ? 'Menyimpan...' : 'Simpan Foto Siswa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: IMPORT SISWA CSV */}
+      {showImportSiswaModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <FileUp className="w-5 h-5 text-emerald-600" />
+              <span>Import Data Siswa Sekaligus (Upload File CSV)</span>
+            </h3>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Upload file CSV template yang telah Anda unduh dan isi, atau tempelkan (*paste*) teks isi file CSV:
+              <br />
+              <code className="bg-slate-100 px-2.5 py-1 rounded font-mono text-[11px] inline-block mt-1 font-bold text-slate-800">
+                No,Nama,Kelas,NISN
+              </code>
+            </p>
+
+            {/* Direct File Selector / Drag & Drop */}
+            <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-4 text-center transition-all group">
+              <input
+                type="file"
+                accept=".csv,.txt"
+                id="csvFileInput"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const content = event.target?.result as string;
+                      if (content) {
+                        setCsvText(content);
+                      }
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor="csvFileInput"
+                className="cursor-pointer flex flex-col items-center justify-center gap-1.5 text-slate-600 group-hover:text-emerald-700"
+              >
+                <Upload className="w-8 h-8 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                  Pilih / Upload File CSV (.csv) dari Perangkat Anda
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Sistem akan otomatis membaca seluruh baris data siswa dari file tersebut.
+                </span>
+              </label>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700 block">
+                Atau Pratinjau / Edit Teks CSV:
+              </label>
+              <textarea
+                rows={4}
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                placeholder="No,Nama,Kelas,NISN&#10;1,Aditya Pratama,7A,0081234567&#10;2,Budi Raharjo,7A,0087654321"
+                className="w-full border border-slate-300 rounded-xl p-3 text-xs font-mono bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportSiswaModal(false);
+                  setCsvText('');
+                }}
+                className="px-3 py-1.5 text-slate-600 hover:text-slate-900 text-xs font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleImportCSV}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <FileUp className="w-3.5 h-3.5" />
+                <span>Proses Import Siswa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD USER */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2">Tambah Akun Juri / Guru</h3>
+            <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="Misal: juri1"
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Lengkap Juri</label>
+                <input
+                  type="text"
+                  required
+                  value={newNama}
+                  onChange={(e) => setNewNama(e.target.value)}
+                  placeholder="Misal: Budi Santoso, S.Pd."
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Hak Akses</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as 'guru' | 'admin')}
+                  className="w-full border p-2 rounded-lg text-sm font-semibold"
+                >
+                  <option value="guru">Juri / Guru Penilai</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Password Awal</label>
+                <input
+                  type="text"
+                  required
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm font-mono"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setShowAddUserModal(false)} className="px-3 py-1.5 text-slate-600">
+                  Batal
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg">
+                  Simpan Akun
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT USER & NIP */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-blue-600" />
+              <span>Edit Akun ({editingUser.username})</span>
+            </h3>
+            <form onSubmit={handleSaveEditUser} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Username (ID)</label>
+                <input
+                  type="text"
+                  disabled
+                  value={editingUser.username}
+                  className="w-full border p-2 rounded-lg text-sm bg-slate-100 font-mono text-slate-600 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Lengkap Akun</label>
+                <input
+                  type="text"
+                  required
+                  value={editUserNama}
+                  onChange={(e) => setEditUserNama(e.target.value)}
+                  placeholder="Nama Lengkap / Nama Admin"
+                  className="w-full border p-2.5 rounded-lg text-sm font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">NIP (Nomor Induk Pegawai)</label>
+                <input
+                  type="text"
+                  value={editUserNip}
+                  onChange={(e) => setEditUserNip(e.target.value)}
+                  placeholder="Misal: 198503152010011005"
+                  className="w-full border p-2.5 rounded-lg text-sm font-mono text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Hak Akses / Role</label>
+                <select
+                  value={editUserRole}
+                  onChange={(e) => setEditUserRole(e.target.value as 'guru' | 'admin')}
+                  className="w-full border p-2.5 rounded-lg text-sm font-semibold text-slate-900"
+                >
+                  <option value="guru">Juri / Guru Penilai</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Akun</label>
+                <select
+                  value={editUserStatus}
+                  onChange={(e) => setEditUserStatus(e.target.value as 'aktif' | 'nonaktif')}
+                  className="w-full border p-2.5 rounded-lg text-sm font-semibold text-slate-900"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-3.5 py-2 text-slate-600 hover:text-slate-900 text-xs font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
+                >
+                  Simpan Perubahan Akun
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD KELAS */}
+      {showAddKelasModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2">Tambah Kelas Baru</h3>
+            <form onSubmit={handleCreateKelas} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Kelas (misal: 7C)</label>
+                <input
+                  type="text"
+                  required
+                  value={newKelasNama}
+                  onChange={(e) => setNewKelasNama(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm uppercase font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tingkat</label>
+                <select
+                  value={newTingkat}
+                  onChange={(e) => setNewTingkat(Number(e.target.value))}
+                  className="w-full border p-2 rounded-lg text-sm font-bold"
+                >
+                  <option value={7}>Kelas 7</option>
+                  <option value={8}>Kelas 8</option>
+                  <option value={9}>Kelas 9</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Wali Kelas</label>
+                <input
+                  type="text"
+                  value={newWaliKelas}
+                  onChange={(e) => setNewWaliKelas(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setShowAddKelasModal(false)} className="px-3 py-1.5 text-slate-600">
+                  Batal
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg">
+                  Simpan Kelas
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT KELAS */}
+      {editingKelas && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-blue-600" />
+              <span>Ubah Data Kelas</span>
+            </h3>
+
+            <form onSubmit={handleSaveEditKelas} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Kelas</label>
+                <input
+                  type="text"
+                  required
+                  value={editKelasNama}
+                  onChange={(e) => setEditKelasNama(e.target.value)}
+                  placeholder="Misal: 7A, 8B..."
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tingkat</label>
+                <select
+                  value={editKelasTingkat}
+                  onChange={(e) => setEditKelasTingkat(Number(e.target.value))}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value={7}>Kelas 7</option>
+                  <option value={8}>Kelas 8</option>
+                  <option value={9}>Kelas 9</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Wali Kelas</label>
+                <input
+                  type="text"
+                  value={editKelasWali}
+                  onChange={(e) => setEditKelasWali(e.target.value)}
+                  placeholder="Nama Wali Kelas..."
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Kelas</label>
+                <select
+                  value={editKelasStatus}
+                  onChange={(e) => setEditKelasStatus(e.target.value as 'aktif' | 'nonaktif')}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value="aktif">Aktif (Ikut Penilaian)</option>
+                  <option value="nonaktif">Nonaktif / Arsip</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingKelas(null)}
+                  className="px-3 py-1.5 text-slate-600 font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD PERIODE */}
+      {showAddPeriodeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2">Buat Periode Baru</h3>
+            <form onSubmit={handleCreatePeriode} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama Periode</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Minggu Ke-4 Oktober 2026"
+                  value={newPeriodeNama}
+                  onChange={(e) => setNewPeriodeNama(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Mulai</label>
+                <input
+                  type="date"
+                  required
+                  value={newTanggalMulai}
+                  onChange={(e) => setNewTanggalMulai(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Selesai</label>
+                <input
+                  type="date"
+                  required
+                  value={newTanggalSelesai}
+                  onChange={(e) => setNewTanggalSelesai(e.target.value)}
+                  className="w-full border p-2 rounded-lg text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setShowAddPeriodeModal(false)} className="px-3 py-1.5 text-slate-600">
+                  Batal
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg">
+                  Buat Periode
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DELETE EVALUATION REASON */}
+      {deletingItem && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-rose-700 border-b pb-2 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-600" />
+              <span>Pembatalan Penilaian</span>
+            </h3>
+            <p className="text-xs text-slate-600">
+              Anda akan menghapus penilaian Kelas {deletingItem.kelasNama} tanggal {deletingItem.tanggal}.
+            </p>
+            <input
+              type="text"
+              required
+              placeholder="Alasan pembatalan..."
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="w-full border border-rose-300 p-2 rounded-lg text-xs"
+            />
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button type="button" onClick={() => setDeletingItem(null)} className="px-3 py-1.5 text-slate-600 text-xs">
+                Batal
+              </button>
+              <button type="button" onClick={ConfirmDeleteEvaluation} className="px-4 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg">
+                Ya, Batalkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT PERIODE */}
+      {editingPeriode && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-base font-bold text-slate-900 border-b pb-2">Edit Periode Penilaian</h3>
+            <form onSubmit={handleSaveEditPeriode} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Nama / Judul Periode</label>
+                <input
+                  type="text"
+                  required
+                  value={editPeriodeNama}
+                  onChange={(e) => setEditPeriodeNama(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Mulai (Senin)</label>
+                <input
+                  type="date"
+                  required
+                  value={editPeriodeMulai}
+                  onChange={(e) => setEditPeriodeMulai(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Tanggal Selesai (Sabtu)</label>
+                <input
+                  type="date"
+                  required
+                  value={editPeriodeSelesai}
+                  onChange={(e) => setEditPeriodeSelesai(e.target.value)}
+                  className="w-full border p-2.5 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Status Periode</label>
+                <select
+                  value={editPeriodeStatus}
+                  onChange={(e) => setEditPeriodeStatus(e.target.value as 'aktif' | 'arsip')}
+                  className="w-full border p-2.5 rounded-xl text-sm font-bold"
+                >
+                  <option value="aktif">Aktif (Minggu Ini)</option>
+                  <option value="arsip">Arsip (Non-Aktif)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setEditingPeriode(null)}
+                  className="px-3.5 py-2 text-slate-600 font-semibold text-xs"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
